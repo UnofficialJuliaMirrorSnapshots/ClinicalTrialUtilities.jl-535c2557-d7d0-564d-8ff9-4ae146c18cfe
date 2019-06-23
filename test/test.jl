@@ -1,6 +1,6 @@
 # Clinical Trial Utilities
 # Copyright © 2019 Vladimir Arnautov aka PharmCat (mail@pharmcat.net)
-using Distributions, Random
+using Distributions, Random, DataFrames
 
 @testset "  Info:               " begin
     ClinicalTrialUtilities.info()
@@ -14,27 +14,46 @@ println(" ---------------------------------- ")
 println(" ---------------------------------- ")
 
 
-@testset "  ctSampleN Test      " begin
+@testset "#1  ctSampleN Test      " begin
+    #1
     @test ceil(ClinicalTrialUtilities.ctSampleN(param=:mean, type=:ea, group=:one, alpha=0.05, beta=0.2, sd=1, a=1.5, b=2, k=1)) == 32
+    #2
     @test ceil(ClinicalTrialUtilities.ctSampleN(param=:mean, type=:ei, group=:one, alpha=0.05, beta=0.2, sd=0.1, diff=0.05, a=2, b=2, k=1)) == 35
+    #3
     @test ceil(ClinicalTrialUtilities.ctSampleN(param=:mean, type=:ns, group=:one, alpha=0.05, beta=0.2, sd=1, diff=-0.5, a=1.5, b=2, k=1)) == 7
+    #4
     @test ceil(ClinicalTrialUtilities.ctSampleN(param=:mean, type=:ea, group=:two, alpha=0.05, beta=0.2, sd=10, a=5, b=10, k=1)) == 63
+    #5
     @test ceil(ClinicalTrialUtilities.ctSampleN(param=:mean, type=:ei, group=:two, alpha=0.05, beta=0.2, sd=10, diff=5, a=5, b=4, k=1)) == 108
+    #6
     @test ceil(ClinicalTrialUtilities.ctSampleN(param=:mean, type=:ns, group=:two, alpha=0.05, beta=0.2, sd=10, diff=5, a=5, b=5, k=1)) == 50
+    #7
     @test ceil(ClinicalTrialUtilities.ctSampleN(param=:prop, type=:ea, group=:one, alpha=0.05, beta=0.2, a=0.3, b=0.5)) == 50
+    #8
     @test ceil(ClinicalTrialUtilities.ctSampleN(param=:prop, type=:ei, group=:one, alpha=0.05, beta=0.2, diff=0.2, a=0.6, b=0.6)) == 52
+    #9
     @test ceil(ClinicalTrialUtilities.ctSampleN(param=:prop, type=:ns, group=:one, alpha=0.05, beta=0.2, diff=-0.1, a=0.3, b=0.5)) == 18
+    #10
     @test ceil(ClinicalTrialUtilities.ctSampleN(param=:prop, type=:ea, group=:two, alpha=0.05, beta=0.2, a=0.65, b=0.85)) == 70
+    #11
     @test ceil(ClinicalTrialUtilities.ctSampleN(param=:prop, type=:ei, group=:two, alpha=0.05, beta=0.2, diff=0.05, a=0.65, b=0.85)) == 136
+    #12
     @test ceil(ClinicalTrialUtilities.ctSampleN(param=:prop, type=:ns, group=:two, alpha=0.05, beta=0.2, diff=-0.1, a=0.85, b=0.65)) == 25
-    @test ceil(ClinicalTrialUtilities.ctSampleN(param=:or, type=:ea,  alpha=0.05, beta=0.2, a=0.4, b=0.25)) == 156
-    @test ceil(ClinicalTrialUtilities.ctSampleN(param=:or, type=:ei,  alpha=0.05, beta=0.2, diff=0.5, a=0.25, b=0.25)) == 366
-    @test ceil(ClinicalTrialUtilities.ctSampleN(param=:or, type=:ns,  alpha=0.05, beta=0.2, diff=0.2, a=0.4, b=0.25)) == 242
+    #13
+    @test ceil(ClinicalTrialUtilities.ctSampleN(param=:or, type=:ea,  alpha=0.05, beta=0.2, a=0.4, b=0.25, logdiff=true)) == 156
+    #14
+    @test ceil(ClinicalTrialUtilities.ctSampleN(param=:or, type=:ei,  alpha=0.05, beta=0.2, diff=0.5, a=0.25, b=0.25, logdiff=true)) == 366
+    #15
+    @test ceil(ClinicalTrialUtilities.ctSampleN(param=:or, type=:ns,  alpha=0.05, beta=0.2, diff=0.2, a=0.4, b=0.25, logdiff=true)) == 242
+    #16
     @test ceil(ClinicalTrialUtilities.ctSampleN(param=:prop, type=:mcnm, a=0.45, b=0.05)) == 23
-
+    #17
     @test ClinicalTrialUtilities.ctSampleN(param=:mean, type=:ns, group=:two, alpha=0.05, beta=0.2, diff=1, sd=20, a=1, b=2) ≈ 1236.511446403953 atol=1E-12
+    #18
     @test ClinicalTrialUtilities.ctSampleN(param=:mean, type=:ns, group=:two, alpha=0.05, beta=0.2, diff=1, sd=20, a=1, b=2, out=:vstr)[1] ≈ 1236.511446403953 atol=1E-12
+    #19
     @test ClinicalTrialUtilities.ctSampleN(param=:prop, type=:ei, group=:one, alpha=0.1, beta=0.2, diff=0.1, a=0.65, b=0.6, out=:vstr)[1] ≈ 630.6717754175304 atol=1E-12
+    #20
     str1 = ClinicalTrialUtilities.ctSampleN(param=:mean, type=:ea, group=:two, alpha=0.05, beta=0.2, sd=10, a=5, b=10, k=2, out=:str);
     str2 = ClinicalTrialUtilities.ctSampleN(param=:mean, type=:ea, group=:two, alpha=0.05, beta=0.2, sd=10, a=5, b=10, k=2, out=:vstr)[2];
     @test str1 == str2
@@ -62,8 +81,8 @@ end
     @test ClinicalTrialUtilities.twoProportionEquivalenceP(0.65, 0.85, 0.05, 136; alpha=0.05, k=1) ≈ 0.8033294052407269  ≈ ClinicalTrialUtilities.ctPower(param=:prop, type=:ei, group=:two, a=0.65, b=0.85, diff=0.05, n=136, alpha=0.05)
     @test ClinicalTrialUtilities.twoProportionNSP(0.85, 0.65, -0.1, 25; alpha=0.05, k=1) ≈ 0.808599833380679 ≈ ClinicalTrialUtilities.ctPower(param=:prop, type=:ns, group=:two, a=0.85, b=0.65, diff=-0.1, n=25, alpha=0.05)
     @test ClinicalTrialUtilities.orEqualityP(0.4, 0.25, 156; alpha=0.05, k=1) ≈ 0.8020239054864792 ≈ ClinicalTrialUtilities.ctPower(param=:or, type=:ea, a=0.4, b=0.25, n=156, alpha=0.05)
-    @test ClinicalTrialUtilities.orEquivalenceP(0.25, 0.25, 0.5, 366; alpha=0.05, k=1, logdiff=true) ≈ 0.8008593380478983  ≈ ClinicalTrialUtilities.ctPower(param=:or, type=:ei, a=0.25, b=0.25, diff=0.5, n=366, alpha=0.05)
-    @test ClinicalTrialUtilities.orNSP(0.4, 0.25, 0.2, 242; alpha=0.05, k=1, logdiff=true) ≈ 0.8007200876001626  ≈ ClinicalTrialUtilities.ctPower(param=:or, type=:ns, a=0.4, b=0.25, diff=0.2, n=242, alpha=0.05)
+    @test ClinicalTrialUtilities.orEquivalenceP(0.25, 0.25, 0.5, 366; alpha=0.05, k=1, logdiff=true) ≈ 0.8008593380478983  ≈ ClinicalTrialUtilities.ctPower(param=:or, type=:ei, a=0.25, b=0.25, diff=0.5, n=366, alpha=0.05, logdiff = true)
+    @test ClinicalTrialUtilities.orNSP(0.4, 0.25, 0.2, 242; alpha=0.05, k=1, logdiff=true) ≈ 0.8007200876001626  ≈ ClinicalTrialUtilities.ctPower(param=:or, type=:ns, a=0.4, b=0.25, diff=0.2, n=242, alpha=0.05, logdiff = true)
 
     pow, str = ClinicalTrialUtilities.ctPower(param=:prop, type=:ea, group=:one, a=0.3, b=0.5, n=50, alpha=0.05, out=:vstr)
     @test pow ≈ 0.8074304194325561
@@ -73,7 +92,7 @@ end
     str2 = ClinicalTrialUtilities.ctPower(param=:mean, type=:ea, group=:two, a=5, b=10, sd=10, n=63, alpha=0.05, out=:str)
     @test str == str2
 
-    @test ClinicalTrialUtilities.ctPower(param=:or, type=:ns, a=0.4, b=0.25, diff=0.2, n=242, alpha=0.05, out=:num) ≈ 0.8007200876001626
+    @test ClinicalTrialUtilities.ctPower(param=:or, type=:ns, a=0.4, b=0.25, diff=0.2, n=242, alpha=0.05, out=:num, logdiff = true) ≈ 0.8007200876001626
 
 end
 
@@ -154,6 +173,26 @@ println(" ---------------------------------- ")
 end
 
 println(" ---------------------------------- ")
+@testset "  pooledCV            " begin
+
+    data = DataFrame(cv = Float64[], df = Int[])
+    push!(data, (0.12, 12))
+    push!(data, (0.2, 20))
+    push!(data, (0.25, 30))
+
+    ci = ClinicalTrialUtilities.pooledCV(data; cv="cv", df="df")
+    @test ci.lower    ≈ 0.18145259424967664 atol=1E-15
+    @test ci.upper    ≈ 0.2609307413637307 atol=1E-15
+    @test ci.estimate ≈ 0.21393949168210136 atol=1E-15
+
+    ci = ClinicalTrialUtilities.pooledCV(data; cv="cv", df="df", returncv=false)
+    @test ci.lower    ≈ 0.032394625994562894 atol=1E-15
+    @test ci.upper    ≈ 0.06586718662236608 atol=1E-15
+    @test ci.estimate ≈ 0.04475355764465427 atol=1E-15
+
+end
+
+println(" ---------------------------------- ")
 @testset "  PowerTOST Test      " begin
     #parallel
     @test ClinicalTrialUtilities.bePower(alpha=0.05, logscale=true, theta1=0.8, theta2=1.25, theta0=0.95, cv=0.3, n=31, design=:parallel, method=:owenq) ≈ 0.2949476 atol=1E-7
@@ -184,6 +223,13 @@ println(" ---------------------------------- ")
     @test ClinicalTrialUtilities.bePower(alpha=0.05, logscale=true, theta1=0.8, theta2=1.25, theta0=0.95, cv=0.4, n=32, design=:d2x3x3) ≈ 0.5976873  atol=1E-7
     @test ClinicalTrialUtilities.bePower(alpha=0.05, logscale=true, theta1=0.8, theta2=1.25, theta0=0.95, cv=0.4, n=31, design=:d2x3x3) ≈ 0.579468  atol=1E-6
     @test ClinicalTrialUtilities.bePower(alpha=0.05, logscale=true, theta1=0.8, theta2=1.25, theta0=0.95, cv=0.4, n=30, design=:d2x3x3) ≈ 0.5614358  atol=1E-7
+    #3x3
+    @test ClinicalTrialUtilities.bePower(alpha=0.05, logscale=true, theta1=0.8, theta2=1.25, theta0=0.95, cv=0.4, n=30, design=:d3x3) ≈ 0.3847067  atol=1E-7
+    #3x6x3
+    @test ClinicalTrialUtilities.bePower(alpha=0.05, logscale=true, theta1=0.8, theta2=1.25, theta0=0.95, cv=0.4, n=30, design=:d3x6x3) ≈ 0.3847067  atol=1E-7
+    #2x4x2
+    @test ClinicalTrialUtilities.bePower(alpha=0.05, logscale=true, theta1=0.8, theta2=1.25, theta0=0.95, cv=0.4, n=30, design=:d2x4x2) ≈ 0.0001785665  atol=1E-10
+
 end
 
 println(" ---------------------------------- ")
@@ -429,6 +475,11 @@ println(" ---------------------------------- ")
     @test ci.lower    ≈  0.0428 atol=1E-4
     @test ci.upper    ≈  0.3422 atol=1E-4
 
+    #https://rdrr.io/cran/ORCI/man/Woolf.CI.html
+    ci = ClinicalTrialUtilities.CI.twoProp(2, 14, 1, 11; alpha=0.05, type=:or,method=:woolf)
+    @test ci.lower    ≈  0.1310604 atol=1E-7
+    @test ci.upper    ≈  21.1946394 atol=1E-7
+
     #CI Test for random sample
     m1  = rand(Normal(), 100)
     m2  = rand(Normal(), 100)
@@ -438,6 +489,26 @@ println(" ---------------------------------- ")
     ci1 = ClinicalTrialUtilities.CI.meanDiffEV(m1, m2, 0.05)
     ci2 = ClinicalTrialUtilities.CI.meanDiffEV(mean(m1), var(m1), length(m1), mean(m2), var(m2), length(m2), 0.05)
     @test ci1 == ci2
+
+    #CMH
+    #http://www.metafor-project.org/doku.php/analyses:rothman2008
+    data = DataFrame(a = Int[], b = Int[], c = Int[], d = Int[])
+    push!(data, (8, 98, 5, 115))
+    push!(data, (22, 76, 16, 69))
+    ci = ClinicalTrialUtilities.CI.cmh(data, alpha = 0.1)
+    @test ci.estimate ≈  0.03490026933691816 atol=1E-4
+    @test ci.lower    ≈  -0.01757497925425447 atol=1E-4
+    @test ci.upper    ≈  0.08737551792809078 atol=1E-4
+
+    ci = ClinicalTrialUtilities.CI.cmh(data, alpha = 0.1, type = :or, logscale = true)
+    @test ci.estimate ≈  0.33871867108844556 atol=1E-7 #0.3387187
+    @test ci.lower    ≈  -0.1730848826896063 atol=1E-7 #-0.1730849
+    @test ci.upper    ≈  0.8505222248664974 atol=1E-7  #0.8505222
+
+    ci = ClinicalTrialUtilities.CI.cmh(data, alpha = 0.1, type = :rr, logscale = true)
+    @test ci.estimate ≈  0.28183148420493526 atol=1E-7
+    @test ci.lower    ≈  -0.14415538594969263 atol=1E-7
+    @test ci.upper    ≈  0.7078183543595631 atol=1E-7
 end
 
 println(" ---------------------------------- ")
@@ -449,18 +520,70 @@ println(" ---------------------------------- ")
     #!
     ClinicalTrialUtilities.SIM.bePower(alpha=0.1, logscale=false, theta1=0.8, theta2=1.25, theta0=0.95, cv=0.2, n=29, simnum=4, seed=1111)
 
-    @test ClinicalTrialUtilities.SIM.ctPropPower(0.5, 100, 0.5, 100, 0.6; alpha=0.05, type=:or, method=:mn, seed=123, simnum=4) ≈ 0.4131
+    @test ClinicalTrialUtilities.SIM.ctPropPower(0.5, 100, 0.5, 100, 0.6; alpha=0.05, type=:ns, citype=:or, method=:mn, seed=123, simnum=4) ≈ 0.4131
 
     #@test ClinicalTrialUtilities.orNSP(0.5, 0.4, 0.8, 100; alpha=0.05, k=1, logdiff=false) ≈ 0.710550974559294
-    @test ClinicalTrialUtilities.SIM.ctPropPower(0.5, 100, 0.4, 100, 0.8; alpha=0.1, type=:or, method=:mn, seed=123, simnum=4) ≈ 0.6988
+    @test ClinicalTrialUtilities.SIM.ctPropPower(0.5, 100, 0.4, 100, 0.8; alpha=0.1, type=:ns,  citype=:or, method=:mn, seed=123, simnum=4) ≈ 0.6988
 
     @test ClinicalTrialUtilities.SIM.ctMeansPowerFS(1.0, 1.0, 10, 1.0, 1.0, 10, -0.3; alpha=0.1, method=:ev,  seed=1235, simnum=4) ≈ 0.1584
     @test ClinicalTrialUtilities.SIM.ctMeansPower(1.0, 1.0, 10, 1.0, 1.0, 10, -0.3; alpha=0.1,  seed=1235, simnum=4) ≈ 0.1662
 
-    T = ClinicalTrialUtilities.SIM.ctPropSampleN(0.6, 0.6,-0.15; alpha=0.1, type=:diff, method=:nhs, seed=1234, simnum=4)
-    @test T[1] == 129
-    @test T[2] ≈ 0.795
+    T = ClinicalTrialUtilities.SIM.ctPropSampleN(0.6, 0.6,-0.15; alpha=0.1, type =:ns, citype=:diff, method=:nhs, seed=1234, simnum=4)
+    @test T[1] == 125
+    @test T[2] ≈ 0.8036
+end
 
+println(" ---------------------------------- ")
+@testset "  PK                  " begin
+
+    data = DataFrame(Concentration = Float64[], Time = Float64[], Subject = String[], Formulation = String[])
+    push!(data, (0.0, 0, "1", "T"))
+    push!(data, (0.2, 1, "1", "T"))
+    push!(data, (0.3, 2, "1", "T"))
+    push!(data, (0.4, 3, "1", "T"))
+    push!(data, (0.3, 4, "1", "T"))
+    push!(data, (0.2, 5, "1", "T"))
+    push!(data, (0.1, 6, "1", "T"))
+    push!(data, (0.0, 0, "2", "T"))
+    push!(data, (0.3, 1, "2", "T"))
+    push!(data, (0.4, 2, "2", "T"))
+    push!(data, (0.5, 3, "2", "T"))
+    push!(data, (0.3, 4, "2", "T"))
+    push!(data, (0.1, 5, "2", "T"))
+    push!(data, (0.05, 6, "2", "T"))
+    push!(data, (0.1, 0, "1", "R"))
+    push!(data, (0.2, 1, "1", "R"))
+    push!(data, (0.9, 2, "1", "R"))
+    push!(data, (0.8, 3, "1", "R"))
+    push!(data, (0.3, 4, "1", "R"))
+    push!(data, (0.2, 5, "1", "R"))
+    push!(data, (0.1, 6, "1", "R"))
+
+    pk = ClinicalTrialUtilities.PK.nca(data; sort=[:Formulation, :Subject])
+    @test pk.result.AUCinf[1] ≈ 1.63205 atol=1E-5
+    @test pk.result.Cmax[1] ≈ 0.4 atol=1E-5
+    @test pk.result.MRTlast[1] ≈ 3.10345 atol=1E-5
+    @test pk.result.Tmax[1] ≈ 3.0 atol=1E-5
+
+    pk = ClinicalTrialUtilities.PK.nca(data[1:7,:]; sort=[:Formulation, :Subject])
+    @test pk.result.AUCinf[1] ≈ 1.63205 atol=1E-5
+    @test pk.result.Cmax[1] ≈ 0.4 atol=1E-5
+    @test pk.result.MRTlast[1] ≈ 3.10345 atol=1E-5
+    @test pk.result.Tmax[1] ≈ 3.0 atol=1E-5
+
+    pk = ClinicalTrialUtilities.PK.nca(data[1:7,:])
+    @test pk.result.AUCinf[1] ≈ 1.63205 atol=1E-5
+    @test pk.result.Cmax[1] ≈ 0.4 atol=1E-5
+    @test pk.result.MRTlast[1] ≈ 3.10345 atol=1E-5
+    @test pk.result.Tmax[1] ≈ 3.0 atol=1E-5
+
+    pk = ClinicalTrialUtilities.PK.nca(data; sort=[:Formulation, :Subject], calcm = :logt)
+    @test pk.result.AUClast[1] ≈ 1.43851 atol=1E-5
+    @test pk.result.AUMClast[1] ≈ 4.49504 atol=1E-5
+
+    pk = ClinicalTrialUtilities.PK.nca(data; sort=[:Formulation, :Subject], calcm = :luld)
+    @test pk.result.AUClast[1] ≈ 1.43851 atol=1E-5
+    @test pk.result.AUMClast[1] ≈ 4.49504 atol=1E-5
 
 end
 
@@ -573,6 +696,19 @@ println(" ---------------------------------- ")
     @test !ClinicalTrialUtilities.ctSampleN(param=:prop, type=:ea, group=:one, alpha=0.05, beta=0.2, diff=1, sd=1, a=-1, b=0, k=1)
     @test !ClinicalTrialUtilities.ctSampleN(param=:prop, type=:ei, group=:one, alpha=0.05, beta=0.2, diff=1, sd=1, a=0.4, b=2, k=1)
     @test !ClinicalTrialUtilities.ctSampleN(param=:or, type=:eea, group=:oone,  diff=1, a=0.5, b=0.5, k=1)
+    data = DataFrame(Concentration = Float64[], Time = Float64[], Subject = String[], Formulation = String[])
+    pk = ClinicalTrialUtilities.PK.nca(data; conc = :c, time = :t,  sort=[:Formulatio, :Subjec], calcm = :logtt)
+    @test length(pk.errors) == 5
+    pk = ClinicalTrialUtilities.PK.nca(data; conc = :Concentration, time = :Time,  sort=6, calcm = :logt)
+    @test length(pk.errors) == 1
+end
+
+println(" ---------------------------------- ")
+@testset "  Print test          " begin
+    ClinicalTrialUtilities.ctSampleN(param=:mean, type=:ea, group=:one, alpha=0.05, beta=0.2, sd=1, a=1.5, b=2, k=1, out=:print)
+    ClinicalTrialUtilities.ctPower(param=:prop, type=:ns, group=:two, a=0.85, b=0.65, diff=-0.1, n=25, alpha=0.05, out=:print)
+    ClinicalTrialUtilities.beSampleN(;theta0=0.95, theta1=0.8, theta2=1.25, cv=0.2, alpha=0.05, beta=0.2, logscale=true, method=:owenq, out=:print)
+    @test true
 end
 
 #println(" ---------------------------------- ")

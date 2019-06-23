@@ -1,3 +1,21 @@
+v0.1.10
+
+- add Cochran–Mantel–Haenszel confidence intervals
+- add documentation and comments
+- improve coverage
+- add tests
+- code cosmetics
+
+
+v0.1.9
+
+- add PK module
+- pooledCV
+- add DataFrames to dependencies
+- Simulation unification
+- logdiff set false by default in ctSampleN, ctPower
+- README.md update and fix
+
 
 v0.1.8
 
@@ -7,6 +25,7 @@ v0.1.8
   - move ConfInt to main module
   - ci2cv
   - new designs in designProp
+
 
 v1.0.7
 
