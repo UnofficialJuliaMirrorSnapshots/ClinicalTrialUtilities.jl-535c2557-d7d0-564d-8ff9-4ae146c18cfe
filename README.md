@@ -1,7 +1,7 @@
 # ClinicalTrialUtilities
- Clinical Trial Power and Sample Size calculation and simulations. Also can be used for confidence intervals estimation.
+ Clinical Trial related calculation: power and sample size calculation, power simulations, confidence interval, pharmacokinetics parameters calculation.
 
-Version:0.1.9
+Version:0.1.10
 
 2019 &copy; Vladimir Arnautov
 
@@ -25,14 +25,18 @@ The package is designed to perform calculations related to the planning and anal
 
 ### Install:
 ```
-using Pkg
-Pkg.add("ClinicalTrialUtilities");
+using Pkg; Pkg.add("ClinicalTrialUtilities");
 ```
 or
 ```
-using Pkg
-Pkg.clone("https://github.com/PharmCat/ClinicalTrialUtilities.jl.git");
+using Pkg; Pkg.clone("https://github.com/PharmCat/ClinicalTrialUtilities.jl.git");
 ```
+
+And then to perform tests:
+```
+Pkg.test("ClinicalTrialUtilities");
+```
+
 ### Basic functions:
 
 - Sample size calculation:
@@ -92,7 +96,6 @@ owensQ(nu, t, delta, a, b)
 
 #### sampleSize
 ```
-using ClinicalTrialUtilities
 ctSampleN(param=[:mean|:prop|:or], type=[:ea|:ei|:ns|:mcnm], group=[:one|:two], alpha=0.05, beta=0.2, diff=0, sd=0, a=0, b=0, k=1, logdiff=false, out=[:num|:str|:vstr|:print])
 
 ```
@@ -137,7 +140,6 @@ ctSampleN(param=[:mean|:prop|:or], type=[:ea|:ei|:ns|:mcnm], group=[:one|:two], 
 
 #### ctPower
 ```
-using ClinicalTrialUtilities
 ctPower(param=[:mean|:prop|:or], type=[:ea|:ei|:ns|:mcnm], group=[:one|:two], alpha=0.05, n=0, diff=0,  sd=0, a=0, b=0, k=1, logdiff=false, out=[:num|:str|:vstr|:print])
 ```
 
@@ -183,7 +185,6 @@ ctPower(param=[:mean|:prop|:or], type=[:ea|:ei|:ns|:mcnm], group=[:one|:two], al
 #### powerTOST
 
 ```
-using ClinicalTrialUtilities
 powerTOST(alpha=0.05, logscale=[true|false], theta1=0.8, theta2=1.25, theta0=0.95, cv=0.0, n=36, method=":owenq|:nct|:shifted", design=":parallel|:d2x2|:d2x2x3|:d2x2x4|:d2x4x4|:d2x3x3", out=[:num|:str|:vstr|:print])
 ```
 **logscale** - theta1, theta2, theta0: if true - make log transformation (default true);
@@ -220,7 +221,6 @@ powerTOST(alpha=0.05, logscale=[true|false], theta1=0.8, theta2=1.25, theta0=0.9
 Using for bioequivalence study.
 
 ```
-using ClinicalTrialUtilities
 beSampleN(alpha=0.05, logscale=[true|false], theta1=0.8, theta2=1.25, theta0=0.95, cv=0, method=[:owenq|:nct|:shifted], design=[:parallel|:d2x2|:d2x2x3|:d2x2x4|:d2x4x4|:d2x3x3], out=[:num|:str|:vstr|:print])
 ```
 **logscale** - theta1, theta2, theta0: if true - make log transformation (default true);
@@ -376,9 +376,13 @@ pooledCV(data; cv=:cv, df=:df, alpha=0.05, returncv=true)
 
 Description here:
 
-https://github.com/PharmCat/ClinicalTrialUtilities.jl/blob/dev/doc/CI.md
+https://github.com/PharmCat/ClinicalTrialUtilities.jl/blob/master/doc/CI.md
 
 ### <a name="PK"></a>Pharmacokinetics
+
+Description here:
+
+https://github.com/PharmCat/ClinicalTrialUtilities.jl/blob/dev/doc/PK.md
 
 ### <a name="SIM"></a>Simulations
 
