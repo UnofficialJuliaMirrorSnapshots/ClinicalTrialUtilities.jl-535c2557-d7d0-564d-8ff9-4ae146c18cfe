@@ -1,6 +1,6 @@
 # Clinical Trial Utilities
 # Copyright © 2019 Vladimir Arnautov aka PharmCat (mail@pharmcat.net)
-using Distributions, Random, DataFrames
+using Distributions, Random, DataFrames, CSV
 
 @testset "  Info:               " begin
     ClinicalTrialUtilities.info()
@@ -193,7 +193,7 @@ println(" ---------------------------------- ")
 end
 
 println(" ---------------------------------- ")
-@testset "  PowerTOST Test      " begin
+@testset "  bePower Test      " begin
     #parallel
     @test ClinicalTrialUtilities.bePower(alpha=0.05, logscale=true, theta1=0.8, theta2=1.25, theta0=0.95, cv=0.3, n=31, design=:parallel, method=:owenq) ≈ 0.2949476 atol=1E-7
     @test ClinicalTrialUtilities.bePower(alpha=0.05, logscale=true, theta1=0.8, theta2=1.25, theta0=0.95, cv=0.3, n=32, design=:parallel, method=:owenq) ≈ 0.3166927 atol=1E-7
@@ -285,6 +285,11 @@ println(" ---------------------------------- ")
     @test ci.upper    ≈ 0.47513399487856794 atol=1E-15
     @test ci.estimate ≈ 0.38 atol=1E-16
 
+    ci = ClinicalTrialUtilities.CI.oneProp(38, 100, alpha=0.05, method=:waldcc)
+    @test ci.lower    ≈ 0.27986600512143206 atol=1E-15
+    @test ci.upper    ≈ 0.48013399487856795 atol=1E-15
+    @test ci.estimate ≈ 0.38 atol=1E-16
+
     ci = ClinicalTrialUtilities.CI.oneProp(38, 100, alpha=0.05, method=:wilson)
     @test ci.lower    ≈ 0.2909759925247873 atol=1E-16
     @test ci.upper    ≈ 0.47790244704488943 atol=1E-15
@@ -315,12 +320,13 @@ println(" ---------------------------------- ")
     @test ci.upper    ≈ 0.47682358116201534 atol=1E-16
     @test ci.estimate ≈ 0.38
 
-    #----
+    #---- twoProp
+    #-- mn
 
     ci = ClinicalTrialUtilities.CI.twoProp(30, 100, 40, 90; alpha=0.05, type=:or, method=:mn)
-    @test ci.lower    ≈ 0.2951669 atol=1E-7
-    @test ci.upper    ≈ 0.9722965 atol=1E-7
-    @test ci.estimate ≈ 0.5357142 atol=1E-7
+    @test ci.lower    ≈ 0.29537414 atol=1E-7
+    @test ci.upper    ≈ 0.97166697 atol=1E-7
+    @test ci.estimate ≈ 0.53571428 atol=1E-7
 
     ci = ClinicalTrialUtilities.CI.twoProp(100, 100, 90, 90; alpha=0.05, type=:or, method=:mn)
     @test ci.lower    ≈ 0.0
@@ -329,10 +335,32 @@ println(" ---------------------------------- ")
 
     ci = ClinicalTrialUtilities.CI.twoProp(0, 100, 90, 90; alpha=0.05, type=:or, method=:mn)
     @test ci.lower    ≈ 0.0
-    @test ci.upper    ≈ 0.0004144169697670039  atol=1E-7
+    @test ci.upper    ≈ 0.00041425995552740226  atol=1E-7
     @test ci.estimate ≈ 0.0
 
     ci = ClinicalTrialUtilities.CI.twoProp(100, 100, 0, 90; alpha=0.05, type=:or, method=:mn)
+    @test ci.lower    ≈ 2413.9431770847045 atol=1E-7
+    @test ci.upper    ≈ Inf
+    @test ci.estimate ≈ Inf
+
+    #-- mn2
+
+    ci = ClinicalTrialUtilities.CI.twoProp(30, 100, 40, 90; alpha=0.05, type=:or, method=:mn2)
+    @test ci.lower    ≈ 0.2951669 atol=1E-7
+    @test ci.upper    ≈ 0.9722965 atol=1E-7
+    @test ci.estimate ≈ 0.5357142 atol=1E-7
+
+    ci = ClinicalTrialUtilities.CI.twoProp(100, 100, 90, 90; alpha=0.05, type=:or, method=:mn2)
+    @test ci.lower    ≈ 0.0
+    @test ci.upper    ≈ Inf
+    #@test ci.estimate == NaN
+
+    ci = ClinicalTrialUtilities.CI.twoProp(0, 100, 90, 90; alpha=0.05, type=:or, method=:mn2)
+    @test ci.lower    ≈ 0.0
+    @test ci.upper    ≈ 0.0004144169697670039  atol=1E-7
+    @test ci.estimate ≈ 0.0
+
+    ci = ClinicalTrialUtilities.CI.twoProp(100, 100, 0, 90; alpha=0.05, type=:or, method=:mn2)
     @test ci.lower    ≈ 2411.6137253788347 atol=1E-7
     @test ci.upper    ≈ Inf
     @test ci.estimate ≈ Inf
@@ -347,6 +375,11 @@ println(" ---------------------------------- ")
     @test ci.upper    ≈ 0.9727082695179062 atol=1E-7
     @test ci.estimate ≈ 0.5357142857142857 atol=1E-7
 
+    ci = ClinicalTrialUtilities.CI.twoProp(30, 100, 40, 90; alpha=0.05, type=:or, method=:mover)
+    @test ci.lower    ≈ 0.2963748435372293 atol=1E-7
+    @test ci.upper    ≈ 0.9689058534780502 atol=1E-7
+    @test ci.estimate ≈ 0.5357142857142857 atol=1E-7
+
     #----
 
     ci = ClinicalTrialUtilities.CI.twoProp(30, 100, 40, 90; alpha=0.05, type=:diff, method=:nhs)
@@ -359,16 +392,14 @@ println(" ---------------------------------- ")
     @test ci.upper    ≈ -0.006516705 atol=1E-9
     @test ci.estimate ≈ -0.1444444   atol=1E-7
 
-    @test ClinicalTrialUtilities.CI.mnzstat(0.4,100,0.3,90,0.05) ≈ 0.5197817 atol=1E-7
-
     ci = ClinicalTrialUtilities.CI.twoProp(30, 100, 40, 90; alpha=0.05, type=:diff, method=:mn)
-    @test ci.lower    ≈ -0.278129080 atol=1E-9
-    @test ci.upper    ≈ -0.006708301 atol=1E-9
+    @test ci.lower    ≈ -0.2781290897168457 atol=1E-9
+    @test ci.upper    ≈ -0.006708341755865329 atol=1E-9
     @test ci.estimate ≈ -0.1444444   atol=1E-7
 
     ci = ClinicalTrialUtilities.CI.twoProp(30, 100, 40, 90; alpha=0.05, type=:diff, method=:mee)
-    @test ci.lower    ≈ -0.27778778455 atol=1E-9
-    @test ci.upper    ≈ -0.00707120778 atol=1E-9
+    @test ci.lower    ≈ -0.27778775409226936 atol=1E-9
+    @test ci.upper    ≈ -0.007071205228197489 atol=1E-9
     @test ci.estimate ≈ -0.14444444444 atol=1E-7
 
     ci = ClinicalTrialUtilities.CI.twoProp(30, 100, 40, 90; alpha=0.05, type=:diff, method=:mee2)
@@ -386,6 +417,31 @@ println(" ---------------------------------- ")
     @test ci.lower    ≈ -0.29140397794 atol=1E-9
     @test ci.upper    ≈  0.00251508905 atol=1E-9
     @test ci.estimate ≈ -0.14444444444 atol=1E-7
+
+    #---- rr
+    #-- mn
+
+    ci = ClinicalTrialUtilities.CI.twoProp(30, 100, 40, 90; alpha=0.05, type=:rr, method=:mn)
+    @test ci.lower    ≈ 0.46636099123297575 atol=1E-7
+    @test ci.upper    ≈ 0.9799258384796817 atol=1E-7
+    @test ci.estimate ≈ 0.675 atol=1E-7
+
+    ci = ClinicalTrialUtilities.CI.twoProp(100, 100, 90, 90; alpha=0.05, type=:rr, method=:mn)
+    @test ci.lower    ≈ 0.0
+    @test ci.upper    ≈ Inf
+    #@test ci.estimate == NaN
+
+    ci = ClinicalTrialUtilities.CI.twoProp(0, 100, 90, 90; alpha=0.05, type=:rr, method=:mn)
+    @test ci.lower    ≈ 0.0
+    @test ci.upper    ≈ 0.018137090385952483  atol=1E-7
+    @test ci.estimate ≈ 0.0
+
+    ci = ClinicalTrialUtilities.CI.twoProp(100, 100, 0, 90; alpha=0.05, type=:rr, method=:mn)
+    @test ci.lower    ≈ 44.8498645475395 atol=1E-7
+    @test ci.upper    ≈ Inf
+    @test ci.estimate ≈ Inf
+
+    #-- cli
 
     ci = ClinicalTrialUtilities.CI.twoProp(30, 100, 40, 90; alpha=0.05, type=:rr, method=:cli)
     @test ci.lower    ≈ 0.4663950 atol=1E-7
@@ -521,7 +577,7 @@ println(" ---------------------------------- ")
     ClinicalTrialUtilities.SIM.bePower(alpha=0.1, logscale=false, theta1=0.8, theta2=1.25, theta0=0.95, cv=0.2, n=29, simnum=4, seed=1111)
 
     @test ClinicalTrialUtilities.SIM.ctPropPower(0.5, 100, 0.5, 100, 0.6; alpha=0.05, type=:ns, citype=:or, method=:mn, seed=123, simnum=4) ≈ 0.4131
-
+    ClinicalTrialUtilities.SIM.ctPropPower(0.5, 100, 0.5, 100, [0.3, 3.0]; alpha=0.05, type=:ei, citype=:or, method=:mn, seed=123, simnum=4) ≈ 0.9562
     #@test ClinicalTrialUtilities.orNSP(0.5, 0.4, 0.8, 100; alpha=0.05, k=1, logdiff=false) ≈ 0.710550974559294
     @test ClinicalTrialUtilities.SIM.ctPropPower(0.5, 100, 0.4, 100, 0.8; alpha=0.1, type=:ns,  citype=:or, method=:mn, seed=123, simnum=4) ≈ 0.6988
 
@@ -530,7 +586,10 @@ println(" ---------------------------------- ")
 
     T = ClinicalTrialUtilities.SIM.ctPropSampleN(0.6, 0.6,-0.15; alpha=0.1, type =:ns, citype=:diff, method=:nhs, seed=1234, simnum=4)
     @test T[1] == 125
-    @test T[2] ≈ 0.8036
+    @test T[2] ≈ 0.8036 atol=1E-3
+    T = ClinicalTrialUtilities.SIM.ctPropSampleN(0.6, 0.6,0.34; alpha=0.1, type =:ns, citype=:or, method=:awoolf, seed=1237, simnum=4)
+    @test T[3] == 44
+    @test T[4] ≈ 0.8106 atol=1E-3
 end
 
 println(" ---------------------------------- ")
@@ -585,6 +644,64 @@ println(" ---------------------------------- ")
     @test pk.result.AUClast[1] ≈ 1.43851 atol=1E-5
     @test pk.result.AUMClast[1] ≈ 4.49504 atol=1E-5
 
+end
+include("testdata.jl")
+println(" ---------------------------------- ")
+@testset "  descriptives        " begin
+
+    df = CSV.read(IOBuffer(descriptivedat)) |> DataFrame
+    ds = ClinicalTrialUtilities.descriptives(df, stats = :all, sort = [:C1, :C2], vars=[:P1, :P2])
+    @test ds[1,:n]        ≈ 20 atol=1E-5
+    @test ds[1,:min]      ≈ 11.30162773 atol=1E-5
+    @test ds[1,:max]      ≈ 13561.95328 atol=1E-5
+    @test ds[1,:range]    ≈ 13550.65165227 atol=1E-5
+    @test ds[1,:mean]     ≈ 1620.9521026095 atol=1E-5
+    @test ds[1,:var]      ≈ 14034427.3245356 atol=1E-5
+    @test ds[1,:sd]       ≈ 3746.25510670797 atol=1E-5
+    @test ds[1,:sem]      ≈ 837.688107965475 atol=1E-5
+    @test ds[1,:cv]       ≈ 231.114485164431 atol=1E-5
+    @test ds[1,:harmmean] ≈ 43.7567236075722 atol=1E-5
+    @test ds[1,:geomean]  ≈ 205.844666821181 atol=1E-5
+    @test ds[1,:geovar]   ≈ 4.91093447695305 atol=1E-5
+    @test ds[1,:geosd]    ≈ 2.21606283235676 atol=1E-5
+    @test ds[1,:geocv]    ≈ 1160.88856294209 atol=1E-5
+    @test ds[1,:skew]     ≈ 2.63411684077405 atol=1E-5
+    @test ds[1,:kurt]     ≈ 5.20836944102797 atol=1E-5
+    @test ds[1,:uq]       ≈ 1130.162773 atol=1E-5
+    @test ds[1,:median]   ≈ 135.6195328 atol=1E-5
+    @test ds[1,:lq]       ≈ 31.022968125 atol=1E-5   #SPSS 30.853444  Phoenix WNL 30.683919295
+    @test ds[1,:iqr]      ≈ 1099.139804875 atol=1E-5 #Same as above
+    @test ds[1,:mode]     ≈ 645.8072989 atol=1E-5
+
+    ds = ClinicalTrialUtilities.descriptives(df, stats = [:mean, :geomean, :geocv])
+    @test ds[1,:mean]     ≈ 2181.5170114224 atol=1E-5
+    @test ds[1,:geomean]  ≈ 4.86763332369581 atol=1E-5
+    @test ds[1,:geocv]    ≈ 124574201599.317 atol=1E-2
+
+    ds = ClinicalTrialUtilities.descriptives(df, sort=[:C3])
+    @test ds[1,:mean]     ≈ 51.35 atol=1E-5
+    @test ds[1,:sem]      ≈ 48.65 atol=1E-5
+    @test ds[1,:median]   ≈ 51.35 atol=1E-3
+
+    df = CSV.read(IOBuffer(negdat)) |> DataFrame
+    ds = ClinicalTrialUtilities.descriptives(df, stats = :all)
+    @test ds[1,:harmmean] === NaN
+    @test ds[1,:geomean]  === NaN
+    @test ds[1,:geovar]   === NaN
+    @test ds[1,:geosd]    === NaN
+    @test ds[1,:geocv]    === NaN
+
+    ds = ClinicalTrialUtilities.descriptives(df, stats = 1)
+    @test ds[1,:sem]      ≈ 1.1131 atol=1E-4
+end
+
+println(" ---------------------------------- ")
+@testset "  Scenario            " begin
+    #Pharmacokinetics statistics
+    res = ClinicalTrialUtilities.descriptives(ClinicalTrialUtilities.PK.nca((CSV.read(IOBuffer(pkdat)) |> DataFrame); sort=[:Subject, :Formulation]).result, sort=[:Formulation], vars = [:AUClast, :Cmax])
+    @test res.mean[1] ≈ 7431.283916666667
+    @test res.mean[2] ≈ 8607.09
+    html = ClinicalTrialUtilities.Export.htmlExport(res)
 end
 
 println(" ---------------------------------- ")
@@ -705,9 +822,13 @@ end
 
 println(" ---------------------------------- ")
 @testset "  Print test          " begin
+    #io = open("out.txt", "w")
+    #redirect_stdout(io)
     ClinicalTrialUtilities.ctSampleN(param=:mean, type=:ea, group=:one, alpha=0.05, beta=0.2, sd=1, a=1.5, b=2, k=1, out=:print)
     ClinicalTrialUtilities.ctPower(param=:prop, type=:ns, group=:two, a=0.85, b=0.65, diff=-0.1, n=25, alpha=0.05, out=:print)
     ClinicalTrialUtilities.beSampleN(;theta0=0.95, theta1=0.8, theta2=1.25, cv=0.2, alpha=0.05, beta=0.2, logscale=true, method=:owenq, out=:print)
+    #redirect_stdout(stdout)
+    #close(io)
     @test true
 end
 
