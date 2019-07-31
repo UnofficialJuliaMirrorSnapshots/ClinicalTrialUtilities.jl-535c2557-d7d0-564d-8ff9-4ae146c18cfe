@@ -26,14 +26,14 @@ function descriptives(data::DataFrame;
         filter!(x-> !(x in sort), vars)
         if length(vars) > 0
             for i = 1:length(vars)
-                if !(eltype(data[vars[1]]) <: Real) deleteat!(vars, i) end
+                if !(eltype(data[:, vars[1]]) <: Real) deleteat!(vars, i) end
             end
         end
         if length(vars) == 0 error("No variables of type Real[] in dataset found! Check vars array!") end
     else
         vars = Array{Symbol,1}(undef, 0)
         for i in dfnames
-            if eltype(data[i]) <: Real push!(vars, i) end
+            if eltype(data[:, i]) <: Real push!(vars, i) end
         end
         if sort !== nothing filter!(x-> !(x in sort), vars) end
         if length(vars) == 0 error("Real[] columns not found!") end
@@ -43,7 +43,7 @@ function descriptives(data::DataFrame;
     sdata = DataFrame()                #Temp dataset for sorting
     if isa(sort, Array)
         for i in sort                  #if sort - make sort columns in dataset
-            dfs[i] = eltype(data[i])[]
+            dfs[:, i] = eltype(data[:, i])[]
         end
     end
     #Filter statistics array
@@ -61,18 +61,18 @@ function descriptives(data::DataFrame;
     end
 
     for i in stats                     #make columns for statistics
-        dfs[i] = Real[]
+        dfs[:, i] = Real[]
     end
     for i in vars                      #var columns for temp dataset
-        sdata[i] = Real[]
+        sdata[:, i] = Real[]
     end
     if !isa(sort, Array)               #if no sort
         for v in vars
             sarray = Array{Any,1}(undef, 0)
-            deleteat!(data[v], findall(x->x === NaN || x === nothing, data[v]))
-            if length(data[v]) > 1
+            deleteat!(data[:, v], findall(x->x === NaN || x === nothing, data[:, v]))
+            if length(data[:, v]) > 1
                 push!(sarray, v)
-                descriptives_!(sarray, data[v], stats)
+                append!(sarray, descriptives_(data[:, v], stats))
                 push!(dfs, sarray)
             end
         end
@@ -80,7 +80,7 @@ function descriptives(data::DataFrame;
     end
 
     #If sort exist
-    sortlist = unique(data[sort])
+    sortlist = unique(data[:, sort])
     sort!(sortlist, tuple(sort))
     for v in vars #For each variable in list
         for i = 1:size(sortlist, 1) #For each line in sortlist
@@ -90,14 +90,15 @@ function descriptives(data::DataFrame;
                     push!(sdata, data[c, vars])
                 end
             end
-        sarray = Array{Any,1}(undef, 0)
-        push!(sarray, v)
+            sarray = Array{Any,1}(undef, 0)
+            push!(sarray, v)
             for c in sort
                 push!(sarray, sortlist[i, c])
             end
-            deleteat!(sdata[v], findall(x->x === NaN || x === nothing, sdata[v]))
-            if length(sdata[v]) > 1
-                descriptives_!(sarray, sdata[v], stats)
+            deleteat!(sdata[:, v], findall(x->x === NaN || x === nothing, sdata[:, v]))
+            if length(sdata[:, v]) > 1
+                append!(sarray, descriptives_(sdata[:, v], stats))
+                #print(sarray)
                 push!(dfs, sarray)
             end
         end
@@ -106,8 +107,8 @@ function descriptives(data::DataFrame;
 end
 
 #Statistics calculation
-function descriptives_!(sarray::Array{Any,1}, data::Array{T,1}, stats::Array{Symbol,1}) where T <: Real
-
+function descriptives_(data::Array{T,1}, stats::Union{Tuple{Vararg{Symbol}}, Array{Symbol,1}}) where T <: Real
+    sarray = Array{Real,1}(undef, 0)
     dn         = nothing
     dmin       = nothing
     dmax       = nothing
@@ -213,4 +214,5 @@ function descriptives_!(sarray::Array{Any,1}, data::Array{T,1}, stats::Array{Sym
             push!(sarray, mode(data))
         end
     end
+    return sarray
 end

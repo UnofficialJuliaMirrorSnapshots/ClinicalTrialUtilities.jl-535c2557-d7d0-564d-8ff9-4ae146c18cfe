@@ -20,9 +20,9 @@ module CI
             return ConfInt(0,0,x/n)
         end
         if method==:wilson
-            return propWilsonCI(x, n, alpha)
+            return propwilsonci(x, n, alpha)
         elseif method==:wilsoncc
-            return propWilsonCCCI(x, n, alpha)
+            return propwilsonccci(x, n, alpha)
         elseif method==:cp
             return propCPCI(x, n, alpha)
         elseif method==:soc
@@ -105,7 +105,7 @@ module CI
 
     #Wilson’s confidence interval for a single proportion, wilson score
     #Wilson, E.B. (1927) Probable inference, the law of succession, and statistical inferenceJ. Amer.Stat. Assoc22, 209–212
-    function propWilsonCI(x::Int, n::Int, alpha::Float64)::ConfInt
+    function propwilsonci(x::Int, n::Int, alpha::Float64)::ConfInt
         z = abs(quantile(ZDIST, 1-alpha/2))
         p = x/n
         b = z*sqrt((p*(1-p)+(z^2)/(4*n))/n)/(1+(z^2)/n)
@@ -114,7 +114,7 @@ module CI
     end
     #Wilson CC
     #Newcombe, R. G. (1998). "Two-sided confidence intervals for the single proportion: comparison of seven methods". Statistics in Medicine. 17 (8): 857–872. doi:10.1002/(SICI)1097-0258(19980430)17:8<857::AID-SIM777>3.0.CO;2-E. PMID 9595616
-    function propWilsonCCCI(x::Int, n::Int, alpha::Float64)::ConfInt
+    function propwilsonccci(x::Int, n::Int, alpha::Float64)::ConfInt
         z = abs(quantile(ZDIST, 1-alpha/2))
         p = x/n
         l = (2*n*p+z*z-1-z*sqrt(z*z-2-1/n+4*p*(n*(1-p)+1)))/2/(n+z*z)
@@ -301,8 +301,8 @@ module CI
         p2       = (x2/(n2-x2))
         estimate = p1/p2
         Z        = quantile(ZDIST, 1-alpha/2)
-        wilci1   = propWilsonCI(x1, n1, alpha)
-        wilci2   = propWilsonCI(x2, n2, alpha)
+        wilci1   = propwilsonci(x1, n1, alpha)
+        wilci2   = propwilsonci(x2, n2, alpha)
         wilci1   = ConfInt(wilci1.lower/(1-wilci1.lower), wilci1.upper/(1-wilci1.upper), estimate)
         wilci2   = ConfInt(wilci2.lower/(1-wilci2.lower), wilci2.upper/(1-wilci2.upper), estimate)
         lower    = (p1*p2-sqrt((p1*p2)^2 - wilci1.lower*wilci2.upper*(2*p1-wilci1.lower)*(2*p2-wilci2.upper)))/(wilci2.upper*(2*p2 - wilci2.upper))
@@ -347,8 +347,8 @@ module CI
         p2       = x2/n2
         estimate = p1-p2
         z        = quantile(ZDIST, 1 - alpha/2)
-        ci1      = propWilsonCI(x1, n1, alpha)
-        ci2      = propWilsonCI(x2, n2, alpha)
+        ci1      = propwilsonci(x1, n1, alpha)
+        ci2      = propwilsonci(x2, n2, alpha)
         return ConfInt(estimate-z*sqrt(ci1.lower*(1-ci1.lower)/n1+ci2.upper*(1-ci2.upper)/n2),
                        estimate+z*sqrt(ci1.upper*(1-ci1.upper)/n1+ci2.lower*(1-ci2.lower)/n2), estimate)
     end
@@ -358,8 +358,8 @@ module CI
         p2       = x2/n2
         estimate = p1-p2
         z        = quantile(ZDIST, 1 - alpha/2)
-        ci1      = propWilsonCCCI(x1, n1, alpha)
-        ci2      = propWilsonCCCI(x2, n2, alpha)
+        ci1      = propwilsonccci(x1, n1, alpha)
+        ci2      = propwilsonccci(x2, n2, alpha)
         return ConfInt(estimate-sqrt((p1-ci1.lower)^2 + (ci2.upper-p2)^2),
                        estimate+sqrt((ci1.upper - p1)^2 + (p2 - ci2.lower)^2), estimate)
     end
@@ -555,8 +555,8 @@ module CI
         p2       = (x2/n2)
         estimate = (x1/n1)/(x2/n2)
         Z        = quantile(ZDIST, 1-alpha/2)
-        wilci1   = propWilsonCI(x1, n1, alpha)
-        wilci2   = propWilsonCI(x2, n2, alpha)
+        wilci1   = propwilsonci(x1, n1, alpha)
+        wilci2   = propwilsonci(x2, n2, alpha)
         lower    = (p1*p2-sqrt((p1*p2)^2 - wilci1.lower*wilci2.upper*(2*p1-wilci1.lower)*(2*p2-wilci2.upper)))/(wilci2.upper*(2*p2 - wilci2.upper))
         upper    = (p1*p2+sqrt((p1*p2)^2 - wilci1.upper*wilci2.lower*(2*p1-wilci1.upper)*(2*p2-wilci2.lower)))/(wilci2.lower*(2*p2 - wilci2.lower))
         return ConfInt(lower, upper, estimate)
@@ -613,30 +613,30 @@ module CI
     #2 equation in: Greenland & Robins (1985)
     # metafor: Meta-Analysis Package for R - Wolfgang Viechtbauer
     function cmh(data::DataFrame; a = :a, b = :b, c = :c, d = :d, alpha = 0.05, type = :diff, method = :default, logscale = false)::ConfInt
-        n1 = data[a] + data[b]
-        n2 = data[c] + data[d]
-        N  = data[a] + data[b] + data[c] + data[d]
+        n1 = data[:, a] + data[:, b]
+        n2 = data[:, c] + data[:, d]
+        N  = data[:, a] + data[:, b] + data[:, c] + data[:, d]
         z = quantile(ZDIST, 1 - alpha/2)
         if type == :diff
             if method == :default method = :sato end #default method
 
-            est = sum(data[a] .* (n2 ./ N) - data[c] .* (n1 ./ N)) / sum(n1 .* (n2 ./ N))
+            est = sum(data[:, a] .* (n2 ./ N) - data[:, c] .* (n1 ./ N)) / sum(n1 .* (n2 ./ N))
             #1
             if method == :sato
-                se   = sqrt((est * (sum(data[c] .* (n1 ./ N) .^ 2 - data[a] .* (n2 ./ N) .^2 + (n1 ./ N) .* (n2 ./ N) .* (n2-n1) ./ 2)) + sum(data[a] .* (n2 - data[c]) ./ N + data[c] .* (n1 - data[a]) ./ N)/2) / sum(n1 .* (n2 ./ N)) .^ 2) # equation in: Sato, Greenland, & Robins (1989)
+                se   = sqrt((est * (sum(data[:, c] .* (n1 ./ N) .^ 2 - data[:, a] .* (n2 ./ N) .^2 + (n1 ./ N) .* (n2 ./ N) .* (n2-n1) ./ 2)) + sum(data[:, a] .* (n2 - data[:, c]) ./ N + data[:, c] .* (n1 - data[:, a]) ./ N)/2) / sum(n1 .* (n2 ./ N)) .^ 2) # equation in: Sato, Greenland, & Robins (1989)
             #2
             elseif method == :gr
-                se   = sqrt(sum(((data[a] ./N .^2) .* data[b] .* (n2 .^2 ./ n1) + (data[c] ./N .^2) .* data[d] .* (n1 .^2 ./ n2))) / sum(n1 .*(n2 ./ N))^2) # equation in: Greenland & Robins (1985)
+                se   = sqrt(sum(((data[:, a] ./N .^2) .* data[:, b] .* (n2 .^2 ./ n1) + (data[:, c] ./N .^2) .* data[:, d] .* (n1 .^2 ./ n2))) / sum(n1 .*(n2 ./ N))^2) # equation in: Greenland & Robins (1985)
             end
             #zval = est/se
             #pval = 2*(1-cdf(Normal(), abs(zval)))
             return ConfInt(est - z*se, est + z*se, est)
         elseif type == :or
             #...
-            Pi = (data[a] ./ N) + (data[d] ./ N)
-            Qi = (data[b] ./ N) + (data[c] ./ N)
-            Ri = (data[a] ./ N) .* data[d]
-            Si = (data[b] ./ N) .* data[c]
+            Pi = (data[:, a] ./ N) + (data[:, d] ./ N)
+            Qi = (data[:, b] ./ N) + (data[:, c] ./ N)
+            Ri = (data[:, a] ./ N) .* data[:, d]
+            Si = (data[:, b] ./ N) .* data[:, c]
             R  = sum(Ri)
             S  = sum(Si)
             if R == 0 || S == 0 return ConfInt(NaN, NaN, NaN) end
@@ -648,13 +648,13 @@ module CI
             if logscale return ConfInt(est - z*se, est + z*se, est) else return ConfInt(exp(est - z*se), exp(est + z*se), exp(est)) end
         elseif type == :rr
             #...
-            R = sum(data[a] .* (n2 ./ N))
-            S = sum(data[c] .* (n1 ./ N))
+            R = sum(data[:, a] .* (n2 ./ N))
+            S = sum(data[:, c] .* (n1 ./ N))
 
-            if sum(data[a]) == 0 || sum(data[c]) == 0 return ConfInt(NaN, NaN, NaN) end
+            if sum(data[:, a]) == 0 || sum(data[:, c]) == 0 return ConfInt(NaN, NaN, NaN) end
 
             est = log(R/S)
-            se  = sqrt(sum(((n1 ./ N) .* (n2 ./ N) .* (data[a] + data[c]) - (data[a] ./ N) .* data[c])) / (R*S))
+            se  = sqrt(sum(((n1 ./ N) .* (n2 ./ N) .* (data[:, a] + data[:, c]) - (data[:, a] ./ N) .* data[:, c])) / (R*S))
             #zval= est / se
             #pval= 2*(1-cdf(Normal(), abs(zval)))
             if logscale return ConfInt(est - z*se, est + z*se, est) else return ConfInt(exp(est - z*se), exp(est + z*se), exp(est)) end

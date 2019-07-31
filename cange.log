@@ -1,14 +1,21 @@
-v0.1.13
+v0.1.14
+  - Add compat to Project.toml
+  - Julian function names (part)
+  - descriptive_!() -> descriptive_()
+  - randomtable() included and add test
 
+v0.1.13
   - MN DIFF CI optimization
-  - index for ConfInt
-  - change test tolerance
-  - check alpha for CI
-  - descriptives: type fix
-  - freque() test
-  - contab() int + test
-  - Randomization
-  - Pharmacodinamic baseline threshold auc
+  - Index for ConfInt
+  - Change test tolerance
+  - Check alpha for CI
+  - descriptives() -  type fix
+  - freque() - add test
+  - contab() - initial commit + test
+  - Randomization - initial commit (alpha)
+  - Pharmacodinamic for nca() -  baseline & threshold AUC, Time
+  - Add test data
+  - Minor changes
 
 v0.1.12
   - add MOVER OR CI
