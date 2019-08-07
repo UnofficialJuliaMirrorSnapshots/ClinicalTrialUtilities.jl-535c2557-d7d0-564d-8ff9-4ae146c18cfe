@@ -1,5 +1,5 @@
 module Export
-    function htmlExport(data; sort=NaN, rspan=:all, title="Title", dict = NaN, file=NaN)
+    function htmlExport(data; sort = NaN, rspan=:all, title="Title", dict::Union{Symbol, Dict} = :undef, file=NaN)
         rowlist = Array{String,1}(undef, 0)
         cnames  = names(data)
         if isa(sort, Array)
@@ -16,6 +16,30 @@ module Export
         else
             rspan = sort
         end
+
+        if dict == :pd
+            dict = Dict(
+            :AUCABL   => "AUC above BL",
+            :AUCBBL   => "AUC below BL",
+            :AUCATH   => "AUC above TH",
+            :AUCBTH   => "AUC below TH",
+            :AUCBLNET => "AUC BL NET",
+            :AUCTHNET => "AUC TH NET",
+            :AUCDBLTH => "AUC between BL/TH",
+            :TABL     => "Time above BL",
+            :TBBL     => "Time below BL",
+            :TATH     => "Time above TH",
+            :TBTH     => "Time below TH")
+        elseif dict == :pk
+        end
+
+        function dictnames(name::Any, dict::Union{Symbol, Dict})
+            if !isa(dict, Dict) return name end
+            dlist = keys(dict)
+            if !(typeof(name) <: eltype(dlist)) return name end
+            if name in dlist return dict[name] else return name end
+        end
+
         out = ""
         html_h = """<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
 <HTML>
@@ -128,7 +152,7 @@ module Export
         <TR CLASS=cell>
             <TD COLSPAN="""*string(coln)*""" CLASS=title>
                 <P ALIGN=CENTER CLASS=cell>
-                <FONT CLASS=title><B>"""*title*"""</B></FONT></P>
+                <FONT CLASS=title><B> """*title*""" </B></FONT></P>
             </TD>
         </TR>"""
 
@@ -139,7 +163,7 @@ module Export
             out *= """
         <TD CLASS=hcell>
             <P ALIGN=CENTER CLASS=cell>
-            <FONT CLASS=cell>"""*string(cnames[c])*"""</FONT></P>
+            <FONT CLASS=cell> """*string(dictnames(cnames[c], dict))*""" </FONT></P>
         </TD>"""
         end
 
@@ -164,6 +188,19 @@ module Export
                 end
             end
         end
+        for c = 2:coln
+            for r = 1:rown
+                if tablematrix[r, c] > tablematrix[r, c - 1]
+                    for i = 1:tablematrix[r, c] - 1
+                        if tablematrix[r + i, c - 1] > tablematrix[r + i, c]
+                            tablematrix[r + i, c] = tablematrix[r, c] - i
+                            tablematrix[r, c] = i
+                            break
+                        end
+                    end
+                end
+            end
+        end
         #print(tablematrix)
 
         for r = 1:rown
@@ -182,7 +219,7 @@ module Export
 
         for r in rowlist
             out *="""
-        <TR CLASS=cell>"""*r*"""
+        <TR CLASS=cell> """*r*"""
         </TR>"""
         end
 
@@ -208,6 +245,9 @@ module Export
     end
 
     function cellformat(val)
+        if val === missing return "missing" end
+        if val === NaN return "NaN" end
+        if val === nothing return "NaN" end
         if isa(val, AbstractFloat)
             return round(val, digits=3)
         else
