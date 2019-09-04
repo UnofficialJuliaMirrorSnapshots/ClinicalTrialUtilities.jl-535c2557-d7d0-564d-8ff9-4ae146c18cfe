@@ -2,11 +2,55 @@
 # Author: Vladimir Arnautov aka PharmCat
 # Copyright © 2019 Vladimir Arnautov aka PharmCat (mail@pharmcat.net)
 
+#ctsamplen, ctpower, besamplen
+
+abstract type Task end
+
+struct SampleSizeTask <: Task
+    param::Symbol
+    type::Symbol
+    group::Symbol
+    alpha::Real
+    beta::Real
+    diff::Real
+    sd::Real
+    a::Real
+    b::Real
+    k::Real
+    logdiff::Bool
+end
+struct PowerTask <: Task
+    param::Symbol
+    type::Symbol
+    group::Symbol
+    alpha::Real
+    n::Real
+    diff::Real
+    sd::Real
+    a::Real
+    b::Real
+    k::Real
+    logdiff::Bool
+end
+struct TOSTSampleSizeTask <: Task
+    alpha::Real
+    beta::Real
+    gmr::Real
+    llim::Real
+    ulim::Real
+    cv::Real
+    logscale::Bool
+    design::Symbol
+    method::Symbol
+end
+struct TaskResult{T <: Task}
+    task::T
+    result
+end
 
 #main sample size function
-function ctSampleN(;param=:notdef, type=:notdef, group=:notdef, alpha=0.05, beta=0.2, diff=0, sd=0, a=0, b=0, k=1, logdiff=false, out=:num)
+function ctsamplen(;param=:notdef, type=:notdef, group=:notdef, alpha=0.05, beta=0.2, diff=0, sd=0, a=0, b=0, k=1, logdiff=false)::TaskResult{SampleSizeTask}
     if alpha >= 1 || alpha <= 0 || beta >= 1 || beta <= 0  throw(CTUException(1201,"sampleSize: alpha and beta sould be > 0 and < 1.")) end
-    if (type == :ei || type == :ns) && diff == 0  throw(CTUException(1202,"sampleSize: diff cannot be 0")) end
     if param == :prop && !(group == :one || group == :two || type == :mcnm)  throw(CTUException(1203,"sampleSize: group should be defined or mcnm type.")) end
     if sd == 0 && param == :mean throw(CTUException(1204,"sampleSize: sd cannot be 0.")) end
     if k <= 0 throw(CTUException(1205,"sampleSize: k cannot be <= 0")) end
@@ -18,7 +62,7 @@ function ctSampleN(;param=:notdef, type=:notdef, group=:notdef, alpha=0.05, beta
                 n = oneSampleMeanEquivalence(a, b, sd, diff, alpha=alpha, beta=beta)
             elseif type == :ns
                 n = oneSampleMeanNS(a, b, sd, diff, alpha=alpha, beta=beta)
-            else return false end
+            else throw(ArgumentError("Keyword type unknown!")) end
         elseif group == :two
             if type == :ea
                 n = twoSampleMeanEquality(a, b, sd, alpha=alpha, beta=beta, k=k)
@@ -26,10 +70,10 @@ function ctSampleN(;param=:notdef, type=:notdef, group=:notdef, alpha=0.05, beta
                 n = twoSampleMeanEquivalence(a, b, sd, diff, alpha=alpha, beta=beta, k=k)
             elseif type == :ns
                 n = twoSampleMeanNS(a, b, sd, diff, alpha=alpha, beta=beta, k=k)
-            else return false end
-        else return false end
+            else throw(ArgumentError("Keyword type unknown!")) end
+        else throw(ArgumentError("Keyword group unknown!")) end
     elseif param == :prop
-        if 1 < a || a < 0 || 1 < b || b < 0 return false end
+        if 1 < a || a < 0 || 1 < b || b < 0 throw(ArgumentError("Keyword a or b out of the range!")) end
         if type == :mcnm
             n = mcnm(a, b; alpha=alpha, beta=beta)
         else
@@ -40,7 +84,7 @@ function ctSampleN(;param=:notdef, type=:notdef, group=:notdef, alpha=0.05, beta
                     n = oneProportionEquivalence(a, b, diff; alpha=alpha, beta=beta)
                 elseif type == :ns
                     n = oneProportionNS(a, b, diff; alpha=alpha, beta=beta)
-                else return false end
+                else throw(ArgumentError("Keyword type unknown!")) end
             elseif group == :two
                 if type == :ea
                     n = twoProportionEquality(a, b; alpha=alpha, beta=beta, k=k)
@@ -48,8 +92,8 @@ function ctSampleN(;param=:notdef, type=:notdef, group=:notdef, alpha=0.05, beta
                     n = twoProportionEquivalence(a, b, diff; alpha=alpha, beta=beta, k=k)
                 elseif type == :ns
                     n = twoProportionNS(a, b, diff; alpha=alpha, beta=beta, k=k)
-                else return false end
-            else return false end
+                else throw(ArgumentError("Keyword type unknown!")) end
+            else throw(ArgumentError("Keyword group unknown!")) end
         end
     elseif param == :or
         if type == :ea
@@ -58,9 +102,11 @@ function ctSampleN(;param=:notdef, type=:notdef, group=:notdef, alpha=0.05, beta
             n = orEquivalence(a, b, diff; alpha=alpha, beta=beta, k=k, logdiff=logdiff)
         elseif type == :ns
             n = orNS(a, b, diff; alpha=alpha, beta=beta, k=k, logdiff=logdiff)
-        else return false end
-    else return false end
-
+        else throw(ArgumentError("Keyword type unknown!")) end
+    else throw(ArgumentError("Keyword param unknown!")) end
+    task = SampleSizeTask(param, type, group, alpha, beta, diff, sd, a, b, k, logdiff)
+    return TaskResult(task, n)
+    #=
     if out == :num return n
     else
         let params::String end #string parameter type
@@ -110,17 +156,16 @@ function ctSampleN(;param=:notdef, type=:notdef, group=:notdef, alpha=0.05, beta
             return n, output
         end
     end
-
+    =#
 end #sampleSize
 
 #clinical trial power main function
-function ctPower(;param=:notdef, type=:notdef, group=:notdef, alpha=0.05, logdiff=false, diff=0, sd=0, a=0, b=0, n=0, k=1,  out=:num)
-    if alpha >= 1 || alpha <= 0  return false end
-    #if (type == :ei || type == :ns) && diff == 0 return false end
-    if param == :prop && !(group == :one || group == :two || type == :mcnm)  return false end
-    if sd == 0 && param == :mean return false end
-    if k == 0 return false end
-    if n == 0 return false end
+function ctpower(;param=:notdef, type=:notdef, group=:notdef, alpha=0.05, logdiff=false, diff=0, sd=0, a=0, b=0, n=0, k=1)::TaskResult{PowerTask}
+    if alpha >= 1 || alpha <= 0  throw(ArgumentError("Keyword alpha out of the range!")) end
+    if param == :prop && !(group == :one || group == :two || type == :mcnm)  throw(ArgumentError("Keyword group or type defined incorrectly!")) end
+    if sd == 0 && param == :mean throw(ArgumentError("Keyword sd = 0!")) end
+    if k == 0 throw(ArgumentError("Keyword k = 0!")) end
+    if n == 0 throw(ArgumentError("Keyword n = 0!")) end
     if param == :mean
         if group == :one
             if type == :ea
@@ -129,7 +174,7 @@ function ctPower(;param=:notdef, type=:notdef, group=:notdef, alpha=0.05, logdif
                 pow =  oneSampleMeanEquivalenceP(a, b, sd, diff, n, alpha=alpha)
             elseif type == :ns
                 pow =  oneSampleMeanNSP(a, b, sd, diff, n, alpha=alpha)
-            else return false end
+            else throw(ArgumentError("Keyword type unknown!")) end
         elseif group == :two
             if type == :ea
                 pow =  twoSampleMeanEqualityP(a, b, sd, n, alpha=alpha, k=k)
@@ -137,10 +182,10 @@ function ctPower(;param=:notdef, type=:notdef, group=:notdef, alpha=0.05, logdif
                 pow =  twoSampleMeanEquivalenceP(a, b, sd, diff, n, alpha=alpha, k=k)
             elseif type == :ns
                 pow =  twoSampleMeanNSP(a, b, sd, diff, n, alpha=alpha, k=k)
-            else return false end
-        else return false end
+            else throw(ArgumentError("Keyword type unknown!")) end
+        else throw(ArgumentError("Keyword group unknown!")) end
     elseif param == :prop
-        if 1 < a || a < 0 || 1 < b || b < 0 return false end
+        if 1 < a || a < 0 || 1 < b || b < 0 throw(ArgumentError("Keyword a or b out of the range!")) end
         if type == :mcnm
             pow =  mcnmP(a, b, n; alpha=alpha)
         else
@@ -151,7 +196,7 @@ function ctPower(;param=:notdef, type=:notdef, group=:notdef, alpha=0.05, logdif
                     pow =  oneProportionEquivalenceP(a, b, diff, n; alpha=alpha)
                 elseif type == :ns
                     pow =  oneProportionNSP(a, b, diff, n; alpha=alpha)
-                else return false end
+                else throw(ArgumentError("Keyword type unknown!")) end
             elseif group == :two
                 if type == :ea
                     pow =  twoProportionEqualityP(a, b, n; alpha=alpha, k=k)
@@ -159,8 +204,8 @@ function ctPower(;param=:notdef, type=:notdef, group=:notdef, alpha=0.05, logdif
                     pow =  twoProportionEquivalenceP(a, b, diff, n; alpha=alpha, k=k)
                 elseif type == :ns
                     pow =  twoProportionNSP(a, b, diff, n; alpha=alpha, k=k)
-                else return false end
-            else return false end
+                else throw(ArgumentError("Keyword type unknown!")) end
+            else throw(ArgumentError("Keyword group unknown!")) end
         end
     elseif param == :or
         if type == :ea
@@ -169,9 +214,12 @@ function ctPower(;param=:notdef, type=:notdef, group=:notdef, alpha=0.05, logdif
             pow =  orEquivalenceP(a, b, diff, n; alpha=alpha, k=k, logdiff=logdiff)
         elseif type == :ns
             pow = orNSP(a, b, diff, n; alpha=alpha, k=k, logdiff=logdiff)
-        end
-    end
+        else throw(ArgumentError("Keyword type unknown!")) end
+    else throw(ArgumentError("Keyword param unknown!")) end
 
+    task = PowerTask(param, type, group, alpha, n, diff, sd, a, b, k, logdiff)
+    return TaskResult(task, pow)
+    #=
     if out == :num return pow
     else
         let params::String end #string parameter type
@@ -214,18 +262,21 @@ function ctPower(;param=:notdef, type=:notdef, group=:notdef, alpha=0.05, logdif
             return pow, output
         end
     end
-end #ctPower
+    =#
+end #ctpower
 #-------------------------------------------------------------------------------
-function beSampleN(;alpha=0.05, beta=0.2, theta0=0.95, theta1=0.8, theta2=1.25, cv=0.0, logscale=true, design=:d2x2, method=:owenq,  out=:num)
+function besamplen(;alpha=0.05, beta=0.2, theta0=0.95, theta1=0.8, theta2=1.25, cv=0.0, logscale=true, design=:d2x2, method=:owenq)::TaskResult{TOSTSampleSizeTask}
 
     theta0 = convert(Float64, theta0); theta1 = convert(Float64, theta1); theta2 = convert(Float64, theta2); cv = convert(Float64, cv); alpha  = convert(Float64, alpha); beta = convert(Float64, beta)
 
-    if cv <= 0 throw(CTUException(1041,"beSampleN: cv can not be <= 0")) end
-    if theta1 >= theta2  throw(CTUException(1042,"beSampleN: theta1 should be < theta2")) end
-    if alpha >= 1 || alpha <= 0 || beta >= 1 || beta <= 0 throw(CTUException(1043,"beSampleN: alpha and beta shold be > 0 and < 1")) end
+    if cv <= 0 throw(CTUException(1041,"besamplen: cv can not be <= 0")) end
+    if theta1 >= theta2  throw(CTUException(1042,"besamplen: theta1 should be < theta2")) end
+    if alpha >= 1 || alpha <= 0 || beta >= 1 || beta <= 0 throw(CTUException(1043,"besamplen: alpha and beta shold be > 0 and < 1")) end
+
+    task = TOSTSampleSizeTask(alpha, beta, theta0, theta1, theta2, cv, logscale, design, method)
 
     if logscale
-        if theta1 < 0 || theta2 < 0 || theta0 < 0 throw(CTUException(1044,"beSampleN: theta0, theta1, theta2 shold be > 0 and ")) end
+        if theta1 < 0 || theta2 < 0 || theta0 < 0 throw(CTUException(1044,"besamplen: theta0, theta1, theta2 shold be > 0 and ")) end
         ltheta1 = log(theta1)
         ltheta2 = log(theta2)
         diffm   = log(theta0)
@@ -276,6 +327,8 @@ function beSampleN(;alpha=0.05, beta=0.2, theta0=0.95, theta1=0.8, theta2=1.25, 
         estpower = pow
         estn     = n0
     end
+    return TaskResult(task, estn)
+    #=
     if out == :num return estn, estpower
     else
         output  = "----------------------------------------\n"
@@ -304,4 +357,5 @@ function beSampleN(;alpha=0.05, beta=0.2, theta0=0.95, theta1=0.8, theta2=1.25, 
     elseif out == :vstr
         return estn, estpower, output
     end
+    =#
 end

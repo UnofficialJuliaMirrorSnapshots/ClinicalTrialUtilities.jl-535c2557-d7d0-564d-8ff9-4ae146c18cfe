@@ -18,6 +18,7 @@ using QuadGK
 using DataFrames
 import SpecialFunctions.lgamma
 import Base.show
+import Base.showerror
 import Base.getindex
 
 #Exceptions
@@ -31,7 +32,7 @@ const ZDIST  = Normal()
 const LOG2   = log(2)
 const PI2    = π * 2.0
 const PI2INV = 0.5 / π
-const VERSION = "0.1.16"
+const VERSION = "0.2.0"
 #Exceptions
 
 struct ConfInt
@@ -61,7 +62,7 @@ struct NCA
     errors::Array
 end
 
-export CTUException, ConfInt, NCA
+export CTUException, ConfInt, NCA, showerror
 
 #Owen function calc: owensQ, owensQo, ifun1, owensTint2, owensT, tfn
 include("owensq.jl")
@@ -69,7 +70,7 @@ include("owensq.jl")
 include("powertost.jl")
 #Sample sise and Power atomic functions
 include("powersamplesize.jl")
-#Main sample size and power functions: sampleSize, ctPower, beSampleN
+#Main sample size and power functions: sampleSize, ctpower, besamplen
 include("samplesize.jl")
 #Confidence interval calculation
 include("CI.jl")
@@ -87,11 +88,15 @@ include("freque.jl")
 include("Export.jl")
 #Randomization
 include("randomization.jl")
+#Show
+include("show.jl")
+#Deprecated
+include("deprecated.jl")
 
 #Sample size
-export ctSampleN, beSampleN
+export ctsamplen, besamplen
 #Power
-export ctPower, bePower
+export ctpower, bepower
 #Utils
 export ci2cv, pooledCV
 #Other
