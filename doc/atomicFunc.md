@@ -15,52 +15,61 @@ p₁ - Reference Proportion
 
 ### One Sample Means
 
+```
 one_mean_equality(μ₀::Real, μ₁::Real, σ::Real, α::Float64, β::Float64)::Float64
 
-oneSampleMeanEquivalence(m0, m1, sd, diff; alpha=0.05, beta=0.2)
+one_mean_equivalence(μ₀::Real, μ₁::Real, σ::Real, δ::Real, α::Float64, β::Float64)::Float64
 
-oneSampleMeanNS(m0, m1, sd, diff; alpha=0.05, beta=0.2) #Non-inferiority / Superiority
+one_mean_superiority(μ₀::Real, μ₁::Real, σ::Real, δ::Real, α::Float64, β::Float64)::Float64
+```
 
 ### Two Sample Means
 
+```
+two_mean_equality(μ₀::Real, μ₁::Real, σ::Real, α::Float64, β::Float64, k::Real)::Float64
 
-twoSampleMeanEquality(m0, m1, sd; alpha=0.05, beta=0.2, k=1)
+two_mean_equivalence(μ₀::Real, μ₁::Real, σ::Real, δ::Real, α::Float64, β::Float64, k::Real)::Float64
 
-twoSampleMeanEquivalence(m0, m1, sd, diff; alpha=0.05, beta=0.2, k=1)
-
-twoSampleMeanNS(m0, m1, sd, diff; alpha=0.05, beta=0.2, k=1) #Non-inferiority / Superiority
+two_mean_superiority(μ₀::Real, μ₁::Real, σ::Real, δ::Real, α::Float64, β::Float64, k::Real)::Float64
+```
 
 ## Compare Proportion
 
 ### One Sample Proportion
 
-one_proportion_equality(p0, p1; alpha=0.05, beta=0.2)
+```
+one_proportion_equality(p₀::Float64, p₁::Float64, α::Float64, β::Float64)::Float64
 
-oneProportionEquivalence(p0, p1, diff; alpha=0.05, beta=0.2)
+one_proportion_equivalence(p₀::Float64, p₁::Float64, δ::Real, α::Float64, β::Float64)::Float64
 
-oneProportionNS(p0, p1, diff; alpha=0.05, beta=0.2)
+one_proportion_superiority(p₀::Float64, p₁::Float64, δ::Real, α::Float64, β::Float64)::Float64
+```
 
 ### Two Sample Proportion
 
-twoProportionEquality(p0, p1; alpha=0.05, beta=0.2, k=1)
+```
+two_proportion_equality(p₀::Float64, p₁::Float64, α::Float64, β::Float64, k::Real)::Float64
 
-twoProportionEquivalence(p0, p1, diff; alpha=0.05, beta=0.2, k=1)
+two_proportion_equivalence(p₀::Float64, p₁::Float64, δ::Real, α::Float64, β::Float64, k::Real)::Float64
 
-twoProportionNS(p0, p1, diff; alpha=0.05, beta=0.2, k=1)
+two_proportion_superiority(p₀::Float64, p₁::Float64, δ::Real, α::Float64, β::Float64, k::Real)::Float64
+```
 
 ## Odd ratio
 
-orEquality(p0, p1; alpha=0.05, beta=0.2, k=1)
+```
+or_equality(p₀::Float64, p₁::Float64, α::Float64, β::Float64, k::Real)::Float64
 
-orEquivalence(p0, p1, diff; alpha=0.05, beta=0.2, k=1, logdiff=true)
+or_equivalence(p₀::Float64, p₁::Float64, δ::Real, α::Float64, β::Float64, k::Real)::Float64
 
-orNS(p0, p1, diff; alpha=0.05, beta=0.2, k=1, logdiff=true)
-
+or_superiority(p₀::Float64, p₁::Float64, δ::Real, α::Float64, β::Float64, k::Real)::Float64
+```
 
 ## McNemar's Equality test
 
-mcnm(p10, p01; alpha=0.05, beta=0.2)
-
+```
+mcnm(p10::Float64, p01::Float64, α::Float64, β::Float64)::Float64
+```
 
 # Power
 
@@ -68,46 +77,58 @@ mcnm(p10, p01; alpha=0.05, beta=0.2)
 
 ### One Sample Means
 
-oneSampleMeanEqualityP(m0,m1,sd, n; alpha=0.05)
+```
+one_mean_equality_pow(μ₀::Real, μ₁::Real, σ::Real, n::Int, α::Float64)::Float64
 
-oneSampleMeanEquivalenceP(m0, m1, sd, diff, n; alpha=0.05)
+one_mean_equivalence_pow(μ₀::Real, μ₁::Real, σ::Real, δ::Real, n::Int, α::Float64)::Float64
 
-oneSampleMeanNSP(m0, m1, sd, diff, n; alpha=0.05) #Non-inferiority / Superiority
+one_mean_superiority_pow(μ₀::Real, μ₁::Real, σ::Real, δ::Real, n::Int, α::Float64)::Float64
+```
 
 ### Two Sample Means
 
-twoSampleMeanEqualityP(m0, m1, sd, n; alpha=0.05, k=1)
+```
+two_mean_equality_pow(μ₀::Real, μ₁::Real, σ::Real, n::Int, α::Float64, k::Real)::Float64
 
-twoSampleMeanEquivalenceP(m0, m1, sd, diff, n; alpha=0.05, k=1)
+two_mean_equivalence_pow(μ₀::Real, μ₁::Real, σ::Real, δ::Real, n::Int, α::Float64, k::Real)::Float64
 
-twoSampleMeanNSP(m0, m1, sd, diff, n; alpha=0.05, k=1) #Non-inferiority / Superiority
+two_mean_superiority_pow(μ₀::Real, μ₁::Real, σ::Real, δ::Real, n::Int, α::Float64, k::Real)::Float64
+```
 
 ## Compare Proportion
 
 ### One Sample proportion
 
-oneProportionEqualityP(p0, p1, n; alpha=0.05)
+```
+one_proportion_equality_pow(p₀::Float64, p₁::Float64, n::Int, α::Float64)::Float64
 
-oneProportionEquivalenceP(p0, p1, diff, n; alpha=0.05)
+one_proportion_equivalence_pow(p₀::Float64, p₁::Float64, δ::Real, n::Int, α::Float64)::Float64
 
-oneProportionNSP(p0, p1, diff, n; alpha=0.05)
+one_proportion_superiority_pow(p₀::Float64, p₁::Float64, δ::Real, n, α::Float64)::Float64
+```
 
 ### Two Sample Proportion
 
-twoProportionEqualityP(p0, p1, n; alpha=0.05, k=1)
+```
+two_proportion_equality_pow(p₀::Float64, p₁::Float64, n::Int, α::Float64, k::Real)::Float64
 
-twoProportionEquivalenceP(p0, p1, diff, n; alpha=0.05, k=1)
+two_proportion_equivalence_pow(p₀::Float64, p₁::Float64, δ::Real, n::Int, α::Float64, k::Real)::Float64
 
-twoProportionNSP(p0, p1, diff, n; alpha=0.05, k=1)
+two_proportion_superiority_pow(p₀::Float64, p₁::Float64, δ::Real, n::Int, α::Float64, k::Real)::Float64
+```
 
 ## Odd Ratio
 
-orEqualityP(p0, p1, n; alpha=0.05, k=1)
+```
+or_equality_pow(p₀::Float64, p₁::Float64, n::Int, α::Float64, k::Real)::Float64
 
-orEquivalenceP(p0, p1, diff, n; alpha=0.05, k=1, logdiff=true)
+or_equivalence_pow(p₀::Float64, p₁::Float64, δ::Real, n::Int, α::Float64, k::Real)::Float64
 
-orNSP(p0, p1, diff, n; alpha=0.05, k=1, logdiff=true)
+or_superiority_pow(p₀::Float64, p₁::Float64, δ::Real, n::Int, α::Float64, k::Real)::Float64
+```
 
 ## McNemar's Equality test
 
-mcnmP(p10, p01, n; alpha=0.05)
+```
+mcnm_pow(p10::Float64, p01::Float64, n::Int, α::Float64)::Float64
+```
