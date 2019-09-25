@@ -9,21 +9,36 @@ function Base.show(io::IO, obj::CTask)
         println(io, obj.objective)
 end
 
-function Base.show(io::IO, obj::TaskResult{CT}) where CT <:  CTask{T, H, O} where T where H where O <: Union{SampleSize, Power}
+function Base.show(io::IO, obj::TaskResult{CT}) where CT <:  CTask{T, D, H, O} where T where D where H where O <: Union{SampleSize, Power}
         println(io, objectivename(obj.task.objective))
         println(io,"-----------------------------------------")
         println(io,"  Parameter type: ",  paramname(obj.task.param))
-        println(io,"  Groups number: ",  groupnum(obj.task.param))
-        println(io,"  Hypothesis: ", hypname(obj.task.hyp))
-        println(io,"  Lower limit: ", round(obj.task.llim, sigdigits = 4))
-        println(io,"  Upper limit: ", round(obj.task.ulim, sigdigits = 4))
+        println(io,"  Design: ",  designinfo(obj.task.design))
+        println(io,"  Hypothesis: ", obj.task.hyp)
+        #println(io,"  Lower limit: ", round(obj.task.llim, sigdigits = 4))
+        #println(io,"  Upper limit: ", round(obj.task.ulim, sigdigits = 4))
         println(io,"  Alpha: ", obj.task.alpha)
         showobjective(io, obj.task.objective)
         println(io, obj.task.param)
         println(io,"-----------------------------------------")
         showresult(io, obj)
 end
-
+function Base.show(io::IO, obj::TaskResult{CT}) where CT <:  CTask{T, D, Bioequivalence, O} where T where D where O <: Union{SampleSize, Power}
+        println(io, objectivename(obj.task.objective))
+        println(io,"-----------------------------------------")
+        println(io,"  Parameter type: ",  paramname(obj.task.param))
+        println(io,"  Design: ",  designinfo(obj.task.design))
+        println(io,"  Hypothesis: ", obj.task.hyp)
+        #println(io,"  Lower limit: ", round(obj.task.llim, sigdigits = 4))
+        #println(io,"  Upper limit: ", round(obj.task.ulim, sigdigits = 4))
+        println(io,"  Alpha: ", obj.task.alpha)
+        showobjective(io, obj.task.objective)
+        println(io, "  A/B = $(round(exp(obj.task.param.a.m - obj.task.param.b.m), sigdigits = 4))")
+        println(io, "  σ  = $(round(obj.task.param.a.sd, sigdigits = 4))")
+        println(io, "  CV  = $(round(cvfromsd(obj.task.param.a.sd), sigdigits = 4))")
+        println(io,"-----------------------------------------")
+        showresult(io, obj)
+end
 
 function objectivename(o::O)::String where O <: AbstractObjective
         if isa(o, SampleSize) return "         Sample Size Estimation         "
@@ -60,38 +75,29 @@ function groupnum(p::T)::String where T <: AbstractParameter
                 return "Two"
         end
 end
-
-function showresult(io, obj)
-        println(io, "Estimate: ")
-        if isa(obj.task.objective, SampleSize)
-                if typeof(obj.task.param) <: AbstractCompositeProportion{R} where R <: Real || typeof(obj.task.param) <: AbstractCompositeMean{R} where R <: Real
-                        print(io,"  Total: ", ceil(obj.result))
-                else
-                        println(io,"  K: ", obj.task.k)
-                        println(io,"  Group A: ", ceil(obj.result * obj.task.k), "  Group B: ", ceil(obj.result))
-                        print(io,"  Total: ", (ceil(obj.result) + ceil(obj.result*obj.task.k)))
-                end
-        elseif  isa(obj.task.objective, Power)
-                println(io, "Power: ", round(obj.result, sigdigits = 6))
-        end
+function designinfo(d::Onegroup)::String
+        return "One group design"
+end
+function designinfo(d::Parallel)::String
+        return "Two parallel groups design"
+end
+function designinfo(d::Crossover)::String
+        return "Crossover design"
 end
 
-function swowtost(io, obj)
-        println(io,"           TOST sample size             ")
-        println(io,"----------------------------------------")
-        println(io,"  Design: ", obj.task.design)
-        println(io,"  Method: ", obj.task.method)
-        println(io,"  Logscale: ", obj.task.logscale)
-        println(io,"----------------------------------------")
-        println(io,"  Alpha: ", obj.task.alpha)
-        println(io,"  Beta: ", obj.task.beta)
-        println(io,"----------------------------------------")
-        println(io,"  Lower limit: ", obj.task.llim)
-        println(io,"  Upper limit: ", obj.task.ulim)
-        println(io,"  GMR: ", obj.task.gmr)
-        println(io,"  CV: ", obj.task.cv)
-        println(io,"----------------------------------------")
-        println(io,"  Sample Size: ", obj.result)
+function showresult(io, obj::TaskResult{CT}) where CT <:  CTask{T, D, H, O} where T where D <: Onegroup where H where O <: SampleSize
+        println(io, "Sample size: $(ceil(obj.result))")
+end
+function showresult(io, obj::TaskResult{CT}) where CT <:  CTask{T, D, H, O} where T where D <: Crossover where H where O <: SampleSize
+        println(io, "Sample size: $(ceil(obj.result))")
+end
+function showresult(io, obj::TaskResult{CT})  where CT <:  CTask{T, D, H, O} where T where D <: Parallel where H where O <: SampleSize
+        println(io, "Sample size (k=$(obj.task.k)):")
+        println(io, "  Group A: ", ceil(obj.result * obj.task.k), "  Group B: ", ceil(obj.result))
+        print(io,   "  Total: ", (ceil(obj.result) + ceil(obj.result*obj.task.k)))
+end
+function showresult(io, obj::TaskResult{CT}) where CT <:  CTask{T, D, H, O} where T where D where H where O <: Power
+        println(io, "Power: ", round(obj.result, sigdigits = 6))
 end
 
 function Base.show(io::IO, p::Proportion)
@@ -102,13 +108,13 @@ function Base.show(io::IO, p::Probability)
 end
 
 function Base.show(io::IO, dp::DiffProportion{Probability, R}) where R <: Real
-        println(io, "  A: ", dp.a.p)
-        print(io, "  Ref: ", dp.b)
+        println(io, "  A   = ", dp.a.p)
+        print(io,   "  Ref = ", dp.b)
 end
 
 function Base.show(io::IO, dp::DiffProportion{Probability, Probability})
-        println(io, "  A: ", dp.a.p)
-        print(io, "  B: ", dp.b.p)
+        println(io, "  A = ", dp.a.p)
+        print(io,   "  B = ", dp.b.p)
 end
 #=
 function Base.show(io, dp::DiffProportion{Proportion})::String
@@ -125,11 +131,11 @@ function Base.show(io::IO, dp::T) where T <: Union{DiffProportion{P, P}, OddRati
         print(io,"  B: ", dp.b.p)
 end
 function Base.show(io::IO, dm::DiffMean{T}) where T <: AbstractMean
-        println(io,"  A: ", dm.a.m, " ± ", dm.a.sd)
-        print(io,"  B: ", dm.b.m, " ± ", dm.b.sd)
+        println(io,"  A: ", dm.a.m, " ± ", round(dm.a.sd, sigdigits = 4))
+        print(io,"  B: ", dm.b.m, " ± ", round(dm.b.sd, sigdigits = 4))
 end
 function Base.show(io::IO, dm::DiffMean{T}) where T <: Real
-        println(io,"  A: ", dm.a.m, " ± ", dm.a.sd)
+        println(io,"  A: ", dm.a.m, " ± ", round(dm.a.sd, sigdigits = 4))
         print(io,"  Ref: ", dm.b)
 end
 function Base.show(io::IO, m::Mean{Nothing})
@@ -137,17 +143,30 @@ function Base.show(io::IO, m::Mean{Nothing})
 end
 
 function Base.show(io::IO, h::Equality)
-        println(io,"  Equality (Two-Sided):")
+        println(io,"Equality")
         println(io,"  H₀: A = B")
-        print(io,"  Hₐ: A ≠ B")
+        print(io,  "  Hₐ: A ≠ B")
 end
 function Base.show(io::IO, h::Equivalence)
-        println(io,"  Equivalence (One-Sided):")
-        println(io,"  H₀: |A − B| ≥ δ")
-        print(io,"  Hₐ: |A − B| < δ")
+        println(io,"Equivalence")
+        println(io,"  H₀: |A − B| ≥ $(round(mdiff(h), sigdigits = 4))")
+        print(io,  "  Hₐ: |A − B| < $(round(mdiff(h), sigdigits = 4))")
+end
+function Base.show(io::IO, h::Bioequivalence)
+        println(io,"BioEquivalence")
+        println(io,"  H₀: A/B ≤ $(round(exp(h.llim), sigdigits = 4)) || A/B ≥ $(round(exp(h.ulim), sigdigits = 4))")
+        print(io,  "  Hₐ: $(round(exp(h.llim), sigdigits = 4)) < A/B < $(round(exp(h.ulim), sigdigits = 4))")
 end
 function Base.show(io::IO, h::Superiority)
-        println(io,"  Superiority/Non-Inferiority (One-Sided):")
-        println(io,"  H₀: A − B ≤ δ")
-        print(io,"  Hₐ: A − B > δ")
+        println(io,"Superiority/Non-Inferiority")
+        println(io,"  H₀: A − B ≤ $(round(h.diff, sigdigits = 4))")
+        print(io,  "  Hₐ: A − B > $(round(h.diff, sigdigits = 4))")
+end
+function Base.show(io::IO, h::McNemars)
+        println(io,"McNemar's Equality test")
+end
+function Base.show(io::IO, e::TaskEstimate)
+        for i = 1:length(e)
+                prinln("Group $i: $(ceil(e.est))")
+        end
 end
