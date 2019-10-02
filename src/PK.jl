@@ -4,8 +4,16 @@ import ..NCA, ..LOG2
 
 export nca
 
-using DataFrames
+struct LimitRule
+    lloq::Float64
+    btmax::Float64
+    atmax::Float64
+    function LimitRule(lloq, btmax, atmax)
+        new(lloq, btmax, atmax)::LimitRule
+    end
+end
 
+using DataFrames
     #Makoid C, Vuchetich J, Banakar V. 1996-1999. Basic Pharmacokinetics.
     function nca(data::DataFrame; conc = NaN, effect = NaN, time=:Time, sort = NaN, calcm = :lint, bl::Float64 = NaN, th::Float64 = NaN)::NCA
         columns  = DataFrames.names(data)
@@ -49,7 +57,6 @@ using DataFrames
         res  = DataFrame()
         elim = DataFrame()
 
-
         if sort === NaN
             if effect !== NaN
                 res   = ncapd(data; conc = effect, time = time, calcm = calcm, bl = bl, th = th)
@@ -71,7 +78,11 @@ using DataFrames
                     end
                     ncares = nca_(datai, :Concentration, :Time, calcm)
                     append!(res, ncares[1])
-                    append!(elim, DataFrame(ncares[3][ncares[2],:]))
+                    if ncares[2] !== NaN
+                        append!(elim, DataFrame(ncares[3][ncares[2], :]))
+                    else
+                        append!(elim, DataFrame(Start = [0], End = [0], b = [NaN], a = [NaN], Rsq = [NaN]))
+                    end
                 end
                 elim = hcat(sortlist, elim)
             #PD NCA
@@ -99,11 +110,14 @@ using DataFrames
         if length(unique(data[:,time])) != length(data[:,time])
             return  DataFrame(AUClast = [NaN], Cmax = [NaN], Tmax = [NaN], AUMClast = [NaN], MRTlast = [NaN], Kel = [NaN], HL = [NaN], Rsq = [NaN], AUCinf = [NaN], AUCpct = [NaN])
         end
+        ncares = Dict(:Nums => 0, :Cmax => NaN, :Tmax => NaN, :Tmaxn => 0, :Tlast => NaN, :Clast => NaN, :AUClast => NaN, :AUMClast => NaN, :MRTlast => NaN, :Kel => NaN, :HL => NaN, :Rsq => NaN, :AUCinf => NaN, :AUCpct => NaN)
+
         pklog = "NCA analysis: \n"
         pklog *= "Concentration column: "*string(conc)*"\n"
         pklog *= "Time column: "*string(time)*"\n"
-        sort!(data, [time])
-        pklog *= "Sorting by Time... \n"
+        #sort!(data, [time])
+        ncarule(data, conc, time, LimitRule(eps(), 0, NaN))
+
         n::Int     = nrow(data)
         cmax = maximum(data[:, conc])               #Cmax
         clast =  data[n, conc]
@@ -116,31 +130,24 @@ using DataFrames
         kel   = NaN
         hl    = NaN
         rsq   = NaN
+        rsqn  = NaN
         aucinf = NaN
         aucinfpct = NaN
         mrtlast = NaN
     # --- Tmax ---
-        for i = 1:nrow(data)
-            if data[i, conc] == cmax
-                tmax = data[i, time]
-                tmaxn = i
-                pklog *= "Tmax = "*string(tmax)*"\n"
-                break
-            end
-        end
-        pklog *= "AUC calculation:\n"
+        cmax, tmax, tmaxn = ctmax(data, conc, time)
         # --- AUC AUMC ---
         for i = 2:nrow(data)
             if calcm == :lint
-                auc_ = linauc(data[i - 1, time], data[i, time], data[i - 1, conc], data[i, conc])    # (data[i - 1, conc] + data[i, conc]) * (data[i, time] - data[i - 1, time])/2
+                auc_  = linauc(data[i - 1, time], data[i, time], data[i - 1, conc], data[i, conc])    # (data[i - 1, conc] + data[i, conc]) * (data[i, time] - data[i - 1, time])/2
                 aumc_ = linaumc(data[i - 1, time], data[i, time], data[i - 1, conc], data[i, conc])  # (data[i - 1, conc]*data[i - 1, time] + data[i, conc]*data[i, time]) * (data[i, time] - data[i - 1, time])/2
             elseif calcm == :logt
                 if i > tmaxn
                     if data[i, conc] < data[i - 1, conc] &&  data[i, conc] > 0 &&  data[i - 1, conc] > 0
-                        auc_ = logauc(data[i - 1, time], data[i, time], data[i - 1, conc], data[i, conc])
+                        auc_  = logauc(data[i - 1, time], data[i, time], data[i - 1, conc], data[i, conc])
                         aumc_ = logaumc(data[i - 1, time], data[i, time], data[i - 1, conc], data[i, conc])
                     else
-                        auc_ = linauc(data[i - 1, time], data[i, time], data[i - 1, conc], data[i, conc])
+                        auc_  = linauc(data[i - 1, time], data[i, time], data[i - 1, conc], data[i, conc])
                         aumc_ = linaumc(data[i - 1, time], data[i, time], data[i - 1, conc], data[i, conc])
                     end
                 else
@@ -149,19 +156,19 @@ using DataFrames
                 end
             elseif calcm == :luld
                 if data[i, conc] < data[i - 1, conc] &&  data[i, conc] > 0 &&  data[i - 1, conc] > 0
-                    auc_ = logauc(data[i - 1, time], data[i, time], data[i - 1, conc], data[i, conc])
+                    auc_  = logauc(data[i - 1, time], data[i, time], data[i - 1, conc], data[i, conc])
                     aumc_ = logaumc(data[i - 1, time], data[i, time], data[i - 1, conc], data[i, conc])
                 else
-                    auc_ = linauc(data[i - 1, time], data[i, time], data[i - 1, conc], data[i, conc])
+                    auc_  = linauc(data[i - 1, time], data[i, time], data[i - 1, conc], data[i, conc])
                     aumc_ = linaumc(data[i - 1, time], data[i, time], data[i - 1, conc], data[i, conc])
                 end
             end
-            auc += auc_
-            aumc += aumc_
+            auc   += auc_
+            aumc  += aumc_
             pklog *= "AUC("*string(i-1)*") = "*string(auc_)*"; Sum = "*string(auc)*"\n"
         end
         # --- MRT ---
-        mrt = aumc / auc
+        mrt    = aumc / auc
         pklog *= "AUClast = "*string(auc)*"\n"
 
         # --- Kel, HL, ets
@@ -181,25 +188,66 @@ using DataFrames
                 aucinf = auc + clast/kel
                 aucinfpct = (aucinf - auc) / aucinf * 100.0
             end
+        else
+            keldata = nothing
         end
-
         # arsq = 1 - (1-rsq)*(rsqn-1)/(rsqn-2)
-
         return DataFrame(AUClast = [auc], Cmax = [cmax], Tmax = [tmax], AUMClast = [aumc], MRTlast = [mrt], Kel = [kel], HL = [hl], Rsq = [rsq], AUCinf = [aucinf], AUCpct = [aucinfpct]), rsqn, keldata
     end
 
-    function ncapd(data::DataFrame; conc::Symbol, time::Symbol, calcm::Symbol = :lint, bl::T, th::T) where T <: Real
+    function ncarule(data::DataFrame, conc::Symbol, time::Symbol, rule::LimitRule)
+        sort!(data, [time])
+
+        cmax, tmax, tmaxn = ctmax(data, conc, time)
+
+        filterv = Array{Int, 1}(undef, 0)
+        for i = 1:nrow(data)
+            if data[i, conc] < rule.lloq
+                if i <= tmaxn
+                    data[i, conc] = rule.btmax
+                else
+                    data[i, conc] = rule.atmax
+                end
+            end
+        end
+        for i = 1:nrow(data)
+            if data[i, conc] === NaN push!(filterv, i) end
+        end
+        if length(filterv) > 0
+            deleterows!(data, filterv)
+        end
+    end
+
+    """
+        cmax
+        tmax
+        tmaxn
+    """
+    function ctmax(data::DataFrame, conc::Symbol, time::Symbol)
+        cmax  = maximum(data[!, conc])
+        tmax  = NaN
+        tmaxn = 0
+        for i = 1:nrow(data)
+            if data[i, conc] == cmax
+                tmax  = data[i, time]
+                tmaxn = i
+                break
+            end
+        end
+        return cmax, tmax, tmaxn
+    end
+
+    function ncapd(data::DataFrame; conc::Symbol, time::Symbol, calcm::Symbol = :lint, bl::Real, th::Real)
 
         aucabl = 0
         aucbbl = 0
         aucath = 0
         aucbth = 0
         aucdblth = 0
-        tabl   = 0
-        tbbl   = 0
-        tath   = 0
-        tbth   = 0
-
+        tabl     = 0
+        tbbl     = 0
+        tath     = 0
+        tbth     = 0
         for i = 2:nrow(data)
             #BASELINE
             if data[i - 1, conc] <= bl && data[i, conc] <= bl
@@ -252,13 +300,14 @@ using DataFrames
         return DataFrame(AUCABL = [aucabl], AUCBBL = [aucbbl], AUCATH = [aucath], AUCBTH = [aucbth], AUCBLNET = [aucabl-aucbbl], AUCTHNET = [aucath-aucbth], AUCDBLTH = [aucdblth], TABL = [tabl], TBBL = [tbbl], TATH = [tath], TBTH = [tbth])
     end
 
-    function slope(x::Array{S, 1}, y::Array{T, 1})::Tuple{Float64, Float64, Float64} where S <: Real where T <: Real
+    function slope(x::Vector, y::Vector)::Tuple{Float64, Float64, Float64}
+        if length(x) != length(y) throw(ArgumentError("Unequal vector length!")) end
         n   = length(x)
         Σxy = sum(x .* y)
         Σx  = sum(x)
         Σy  = sum(y)
-        Σx2 = sum( x .* x)
-        Σy2 = sum( y .* y)
+        Σx2 = sum(x .* x)
+        Σy2 = sum(y .* y)
 
         a   = (Σy * Σx2 - Σx * Σxy)/(n * Σx2 - Σx^2)
         b   = (n * Σxy - Σx * Σy)/(n * Σx2 - Σx^2)
@@ -266,8 +315,8 @@ using DataFrames
         return a, b, r2
     end #end slope
         #Linear trapezoidal auc
-    function linauc(t1, t2, c1, c2)::Float64
-        return (t2-t1)*(c1+c2)/2
+    function linauc(t₁, t₂, c₁, c₂)::Float64
+        return (t₂-t₁)*(c₁+c₂)/2
     end
         #Linear trapezoidal aumc
     function linaumc(t1, t2, c1, c2)::Float64
@@ -282,15 +331,15 @@ using DataFrames
         return (t2-t1) * (t2*c2-t1*c1) / log(c2/c1) - (t2-t1)^2 * (c2-c1) / log(c2/c1)^2
     end
 
-    function linpredict(a1::A, a2::B, ax::C, b1::D, b2::E)::Float64 where A <: Real where B <: Real where C <: Real where D <: Real where E <: Real
+    function linpredict(a1::Real, a2::Real, ax::Real, b1::Real, b2::Real)::Float64
         return abs((ax - a1) / (a2 - a1))*(b2 - b1) + b1
     end
 
-    function logtpredict(c1::A, c2::B, cx::C, t1::D, t2::E)::Float64 where A <: Real where B <: Real where C <: Real where D <: Real where E <: Real
+    function logtpredict(c1::Real, c2::Real, cx::Real, t1::Real, t2::Real)::Float64
         return log(cx/c1)/log(c2/c1)*(t2-t1)+t1
     end
 
-    function logcpredict(t1::A, t2::B, tx::C, c1::D, c2::E)::Float64 where A <: Real where B <: Real where C <: Real where D <: Real where E <: Real
+    function logcpredict(t1::Real, t2::Real, tx::Real, c1::Real, c2::Real)::Float64
         return exp(log(c1) + abs((tx-t1)/(t2-t1))*(log(c2) - log(c1)))
     end
 end #end module
