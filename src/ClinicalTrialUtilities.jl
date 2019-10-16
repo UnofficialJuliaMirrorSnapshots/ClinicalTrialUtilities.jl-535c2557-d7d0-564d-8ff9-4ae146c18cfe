@@ -20,6 +20,7 @@ import SpecialFunctions
 import Base.show
 import Base.showerror
 import Base.getindex
+import Base.length
 
 function lgamma(x)
     return SpecialFunctions.logabsgamma(x)[1]
@@ -76,12 +77,12 @@ include("samplesize.jl")
 include("CI.jl")
 #Simulations
 include("SIM.jl")
-#PK
-include("PK.jl")
 #info function
 include("info.jl")
 #Descriptive statistics
 include("descriptives.jl")
+#PK
+include("PK.jl")
 #Frequency
 include("freque.jl")
 #Export

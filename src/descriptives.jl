@@ -1,5 +1,15 @@
 abstract type AbstractData end
 abstract type AbstractDataSet end
+struct DataSort
+    var::Vector
+    val::Vector
+    function DataSort(var, val)
+        new(var, val)::DataSort
+    end
+    function DataSort()
+        new(Array{Any,1}(undef, 0), Array{Any,1}(undef, 0))::DataSort
+    end
+end
 """
     Descriptive statistics type
 """
@@ -50,6 +60,9 @@ function Base.getindex(a::DataSet{Descriptive}, i::Int64)::Descriptive
 end
 function Base.getindex(a::DataSet{Descriptive}, i::Int64, s::Symbol)::Real
     return a.data[i].data[s]
+end
+function Base.length(data::DataSet{T}) where T <: AbstractData
+    return length(data.data)
 end
 """
     Descriptive statistics
