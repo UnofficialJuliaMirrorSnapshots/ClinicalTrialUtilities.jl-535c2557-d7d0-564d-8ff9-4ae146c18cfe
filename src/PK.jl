@@ -197,7 +197,7 @@ function Base.show(io::IO, obj::PDSubject)
     end
 end
 #-------------------------------------------------------------------------------
-    function ncarule!(data::DataFrame, conc::Symbol, time::Symbol, rule::LimitRule)
+function ncarule!(data::DataFrame, conc::Symbol, time::Symbol, rule::LimitRule)
         sort!(data, [time])
 
         cmax, tmax, tmaxn = ctmax(data, conc, time)
@@ -217,7 +217,10 @@ end
         if length(filterv) > 0
             deleterows!(data, filterv)
         end
-    end
+end
+function ncarule!(data::PKSubject, rule::LimitRule)
+    #!!!!
+end
 
     """
         cmax
@@ -256,6 +259,10 @@ end
         cmax, tmax, tmaxn = ctmax(data.time[mask], data.obs[mask])
         if cmax > cpredict return cmax, tmax, tmaxn + s else return cpredict, data.dosetime.time, s end
     end
+    """
+    Range for AUC
+        return start point number, end point number
+    """
     function ncarange(data::PKSubject, dosetime, tau)
         tautime = dosetime + tau
         s     = 0
@@ -333,6 +340,7 @@ end
     function logaumc(t₁, t₂, c₁, c₂)::Number
         return (t₂-t₁) * (t₂*c₂-t₁*c₁) / log(c₂/c₁) - (t₂-t₁)^2 * (c₂-c₁) / log(c₂/c₁)^2
     end
+    #Intrapolation
         #linear prediction bx from ax, a1 < ax < a2
     function linpredict(a1, a2, ax, b1, b2)::Number
         return abs((ax - a1) / (a2 - a1))*(b2 - b1) + b1
@@ -342,11 +350,18 @@ end
         return log(cx/c1)/log(c2/c1)*(t2-t1)+t1
     end
 
-    function logcpredict(t1, t2, tx, c1, c2)::Number
-        return exp(log(c1) + abs((tx-t1)/(t2-t1))*(log(c2) - log(c1)))
+    function logcpredict(t₁, t₂, tx, c₁, c₂)::Number
+        return exp(log(c₁) + abs((tx-t₁)/(t₂-t₁))*(log(c₂) - log(c₁)))
     end
-
-
+    function cpredict(t₁, t₂, tx, c₁, c₂, calcm)
+        if calcm == :lint || c₂ >= c₁
+            return linpredict(t₁, t₂, tx, c₁, c₂)
+        else
+            return logcpredict(t₁, t₂, tx, c₁, c₂)
+        end
+    end
+    #Extrapolation
+        #!!!
     #---------------------------------------------------------------------------
 
     function aucpart(t₁, t₂, c₁, c₂, calcm, aftertmax)
@@ -355,7 +370,7 @@ end
             aumc  = linaumc(t₁, t₂, c₁, c₂)    # (data[i - 1, conc]*data[i - 1, time] + data[i, conc]*data[i, time]) * (data[i, time] - data[i - 1, time])/2
         elseif calcm == :logt
             if aftertmax
-                if c₂ < c₁ &&  c₂ > 0 &&  c₁ > 0
+                if c₁ > c₂ > 0
                     auc   =  logauc(t₁, t₂, c₁, c₂)
                     aumc  = logaumc(t₁, t₂, c₁, c₂)
                 else
@@ -367,7 +382,7 @@ end
                 aumc  = linaumc(t₁, t₂, c₁, c₂)
             end
         elseif calcm == :luld
-            if c₂ < c₁ &&  c₂ > 0 &&  c₁ > 0
+            if c₁ > c₂ > 0
                 auc   =  logauc(t₁, t₂, c₁, c₂)
                 aumc  = logaumc(t₁, t₂, c₁, c₂)
             else
@@ -379,7 +394,12 @@ end
     end
 
 #-------------------------------------------------------------------------------
-    function nca!(data::PKSubject; calcm = :lint, verbose = false, io = IO)
+"""
+    nca!(data::PKSubject; calcm = :lint, verbose = false, io::IO = stdout)
+
+Pharmacokinetics non-compartment analysis for one PK subject.
+"""
+function nca!(data::PKSubject; calcm = :lint, verbose = false, io::IO = stdout)
         result   = Dict()
         #=
         result    = Dict(:Obsnum   => 0,   :Tmax   => 0,   :Tmaxn    => 0,   :Tlast   => 0,
@@ -400,11 +420,13 @@ end
         #Areas
         aucpartl  = Array{Number, 1}(undef, result[:Obsnum] - 1)
         aumcpartl = Array{Number, 1}(undef, result[:Obsnum] - 1)
+        #Calculate all UAC part based on data
         for i = 1:(result[:Obsnum] - 1)
             aucpartl[i], aumcpartl[i] = aucpart(data.time[i], data.time[i + 1], data.obs[i], data.obs[i + 1], calcm, i + 1 > result[:Tmaxn])
         end
         pmask   = Array{Bool, 1}(undef, result[:Obsnum] - 1)
         pmask  .= true
+        #Find AUC part from dose time; exclude all before dosetime
         for i = 1:result[:Obsnum] - 1
             if  data.time[i] <= data.dosetime.time < data.time[i+1]
                 if data.time[i] == data.dosetime.time
@@ -420,8 +442,10 @@ end
                 pmask[i]     = false
             end
         end
+        #sum all AUC parts
         result[:AUCall]  = sum(aucpartl[pmask])
         result[:AUMCall] = sum(aumcpartl[pmask])
+        #Exclude all AUC parts from observed concentation before 0 or less
         for i = result[:Tmaxn]:result[:Obsnum] - 1
             if data.obs[i+1] <= 0 * data.obs[i+1] pmask[i:end] .= false; break end
         end
@@ -471,11 +495,14 @@ end
             ncas, ncae = ncarange(data, data.dosetime.time, data.dosetime.tau)
             tautime = data.dosetime.time + data.dosetime.tau
             if tautime < data.time[end]
-                result[:Ctau] = linpredict(data.time[ncae] , data.time[ncae+1], tautime, data.obs[ncae], data.obs[ncae+1])
-                aucpartl[ncae], aumcpartl[ncae] = aucpart(data.time[ncae], tautime, data.obs[ncae], result[:Ctau], :lint, false)
+                #result[:Ctau] = linpredict(data.time[ncae] , data.time[ncae+1], tautime, data.obs[ncae], data.obs[ncae+1])
+                result[:Ctau] = cpredict(data.time[ncae], data.time[ncae+1], tautime, data.obs[ncae], data.obs[ncae+1], calcm)
+                aucpartl[ncae], aumcpartl[ncae] = aucpart(data.time[ncae], tautime, data.obs[ncae], result[:Ctau], calcm, false)
+                #remoove part after tau
                 if ncae < result[:Obsnum] - 1 pmask[ncae+1:end] .= false end
             elseif tautime > data.time[end]
                 #extrapolation
+                #!!!
             else
                 result[:Ctau] = data.obs[end]
             end
@@ -492,19 +519,31 @@ end
         #-----------------------------------------------------------------------
         return PKPDProfile(data, result; method = calcm)
     end
-    function nca!(data::DataSet{PKSubject}; calcm = :lint)
+"""
+    nca!(data::DataSet{PKSubject}; calcm = :lint, verbose = false, io::IO = stdout)
+
+Pharmacokinetics non-compartment analysis for PK subjects set.
+"""
+function nca!(data::DataSet{PKSubject}; calcm = :lint, verbose = false, io::IO = stdout)
         results = Array{PKPDProfile, 1}(undef, 0)
         for i = 1:length(data.data)
             push!(results, nca!(data.data[i]; calcm = calcm))
         end
         return DataSet(results)
-    end
+end
     #---------------------------------------------------------------------------
-    function nca!(data::PDSubject)::PKPDProfile{PDSubject}
-        result = Dict(:Obsnum => 0, :RMAX => 0, :TH => 0, :BL => 0, :AUCABL => 0, :AUCBBL => 0, :AUCATH => NaN, :AUCBTH => NaN, :AUCBLNET => 0, :AUCTHNET => 0, :AUCDBLTH => NaN, :TABL => 0, :TBBL => 0, :TATH => NaN, :TBTH => NaN)
+"""
+    nca!(data::PDSubject; verbose = false, io::IO = stdout)::PKPDProfile{PDSubject}
+
+Pharmacodynamics non-compartment analysis for one PD subject.
+"""
+function nca!(data::PDSubject; verbose = false, io::IO = stdout)::PKPDProfile{PDSubject}
+        result = Dict(:TH => NaN, :AUCABL => 0, :AUCBBL => 0, :AUCBLNET => 0,  :TABL => 0, :TBBL => 0)
         result[:Obsnum] = length(data)
         result[:TH] = data.th
         result[:BL] = data.bl
+        result[:RMAX] = maximum(data.obs)
+        result[:RMIN] = maximum(data.obs)
         for i = 2:obsnum(data) #BASELINE
             if data.obs[i - 1] <= result[:BL] && data.obs[i] <= result[:BL]
                 result[:TBBL]   += data.time[i,] - data.time[i - 1]
@@ -566,8 +605,12 @@ end
         result[:AUCBLNET] = result[:AUCABL] - result[:AUCBBL]
         return PKPDProfile(data, result)
     end
+"""
+    nca!(data::PDSubject; verbose = false, io::IO = stdout)::PKPDProfile{PDSubject}
 
-    function nca!(data::DataSet{PDSubject})
+Pharmacodynamics non-compartment analysis for PD subjects set.
+"""
+function nca!(data::DataSet{PDSubject}; verbose = false, io::IO = stdout)
         results = Array{PKPDProfile, 1}(undef, 0)
         for i = 1:length(data.data)
             push!(results, nca!(data.data[i]))
@@ -575,7 +618,12 @@ end
         return DataSet(results)
     end
     #---------------------------------------------------------------------------
-    function pkimport(data::DataFrame, sort::Array, rule::LimitRule; conc::Symbol, time::Symbol)
+"""
+    pkimport(data::DataFrame, sort::Array, rule::LimitRule; conc::Symbol, time::Symbol)
+
+Pharmacokinetics data import from DataFrame.
+"""
+function pkimport(data::DataFrame, sort::Array, rule::LimitRule; conc::Symbol, time::Symbol)
         sortlist = unique(data[:, sort])
         results  = Array{PKSubject, 1}(undef, 0)
         for i = 1:size(sortlist, 1) #For each line in sortlist
@@ -610,7 +658,12 @@ end
         return DataSet([PKSubject(datai[!, time], datai[!, conc])])
     end
     #---------------------------------------------------------------------------
-    function pdimport(data::DataFrame, sort::Array; resp::Symbol, time::Symbol, bl = 0, th = NaN)
+"""
+    pdimport(data::DataFrame, sort::Array; resp::Symbol, time::Symbol, bl::Real = 0, th::Real = NaN)
+
+Pharmacodynamics data import from DataFrame.
+"""
+    function pdimport(data::DataFrame, sort::Array; resp::Symbol, time::Symbol, bl::Real = 0, th::Real = NaN)
         sortlist = unique(data[:, sort])
         results  = Array{PDSubject, 1}(undef, 0)
         for i = 1:size(sortlist, 1) #For each line in sortlist
@@ -646,14 +699,17 @@ end
         for i = 1:length(data)
             data[i].kelrange = range
         end
+        data
     end
     function setelimrange!(data::DataSet{PKSubject}, range::ElimRange, subj::Array{Int,1})
         for i = 1:length(data)
             if i ∈ subj data[i].kelrange = range end
         end
+        data
     end
     function setelimrange!(data::DataSet{PKSubject}, range::ElimRange, subj::Int)
         data[subj].kelrange = range
+        data
     end
     #---------------------------------------------------------------------------
     function applyelimrange!(data::PKPDProfile{PKSubject}, range::ElimRange)
@@ -662,10 +718,20 @@ end
         data
     end
     function applyelimrange!(data::DataSet{PKPDProfile{PKSubject}}, range::ElimRange)
+        for i = 1:length(data)
+            applyelimrange!(data[i], range)
+        end
+        data
     end
     function applyelimrange!(data::DataSet{PKPDProfile{PKSubject}}, range::ElimRange, subj::Array{Int,1})
+        for i = 1:length(data)
+            if i ∈ subj applyelimrange!(data[i], range) end
+        end
+        data
     end
     function applyelimrange!(data::DataSet{PKPDProfile{PKSubject}}, range::ElimRange, subj::Int)
+        applyelimrange!(data[subj], range)
+        data
     end
     function applyelimrange!(data::DataSet{PKPDProfile{PKSubject}}, range::ElimRange, sort::Dict)
         for i = 1:length(data)
@@ -692,29 +758,37 @@ end
         end
         data
     end
-    function setth!(data::PDSubject, th)
+    function setth!(data::PDSubject, th::Real)
         data.th = th
         data
     end
-    function setth!(data::DataSet{PDSubject}, th)
+    function setth!(data::DataSet{PDSubject}, th::Real)
         for i = 1:length(data)
-            data[1].th = th
+            data[i].th = th
         end
         data
     end
-    function setth!(data::DataSet{PDSubject}, th, sort)
+    function setth!(data::DataSet{PDSubject}, th::Real, sort::Dict)
+        for i = 1:length(data)
+            if sort ∈ data[i].sort data[i].th = th end
+        end
+        data
     end
     function setbl!(data::PDSubject, bl)
         data.bl = bl
         data
     end
-    function setbl!(data::DataSet{PDSubject}, bl)
+    function setbl!(data::DataSet{PDSubject}, bl::Real)
         for i = 1:length(data)
-            data[1].bl = bl
+            data[i].bl = bl
         end
         data
     end
-    function setbl!(data::DataSet{PDSubject}, bl, sort)
+    function setbl!(data::DataSet{PDSubject}, bl::Real, sort::Dict)
+        for i = 1:length(data)
+            if sort ∈ data[i].sort data[i].bl = bl end
+        end
+        data
     end
     #---------------------------------------------------------------------------
     function keldata(data::PKPDProfile{PKSubject})
@@ -739,7 +813,7 @@ end
         for i = 1:size(d,2)
             df[!,dfn[i]] = Array{eltype(d[!, dfn[i]]), 1}(undef, 0)
         end
-        df = hcat(df, DataFrame(param = Any[], value = Any[]))
+        df = hcat(df, DataFrame(param = Any[], value = Real[]))
         for i = 1:size(d,1)
             a = Array{Any,1}(undef, size(d,2))
             copyto!(a, collect(d[i,:]))
